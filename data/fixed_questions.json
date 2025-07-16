@@ -1,0 +1,216 @@
+{
+  "hr_questions": [
+    {
+      "question_id": 1,
+      "position_id": 1,
+      "question_section": "hr",
+      "content": "본인을 한 단어로 표현한다면 무엇이고, 그 이유는 무엇인가요?",
+      "intent": "지원자의 자기 인식과 표현 능력 평가",
+      "level": 1
+    },
+    {
+      "question_id": 2,
+      "position_id": 1,
+      "question_section": "hr",
+      "content": "지금까지 살면서 가장 성취감을 느꼈던 경험은 무엇인가요?",
+      "intent": "지원자의 가치관과 동기 부여 요소 파악",
+      "level": 1
+    },
+    {
+      "question_id": 3,
+      "position_id": 1,
+      "question_section": "hr",
+      "content": "스트레스를 받는 상황에서 어떻게 대처하시나요?",
+      "intent": "업무 압박 상황에서의 대처 능력 평가",
+      "level": 2
+    },
+    {
+      "question_id": 4,
+      "position_id": 1,
+      "question_section": "hr",
+      "content": "동료나 팀원과 의견 충돌이 있을 때 어떻게 해결하시나요?",
+      "intent": "대인관계 능력과 갈등 해결 스킬 평가",
+      "level": 2
+    },
+    {
+      "question_id": 5,
+      "position_id": 1,
+      "question_section": "hr",
+      "content": "실패했던 경험과 그로부터 배운 점은 무엇인가요?",
+      "intent": "실패에 대한 태도와 학습 능력 평가",
+      "level": 2
+    },
+    {
+      "question_id": 6,
+      "position_id": 1,
+      "question_section": "hr",
+      "content": "누군가를 설득하는 일은 쉬운 일이 아닙니다. 타인을 설득하다가 성공한 경험이나 실패한 경험 어떤 것이 있는지 자세하게 얘기해 주시겠어요?",
+      "intent": "소통 능력과 설득력, 대인 관계 능력 평가",
+      "level": 3
+    },
+    {
+      "question_id": 7,
+      "position_id": 1,
+      "question_section": "hr",
+      "content": "자신이 생각하는 '좋은 개발자'의 자질은 무엇이며, 당신은 그 자질을 어떻게 갖추고 있습니까? 구체적인 경험이나 에피소드를 통해 설명해주세요.",
+      "intent": "개발자로서의 가치관과 자기 이해도 평가",
+      "level": 3
+    },
+    {
+      "question_id": 8,
+      "position_id": 1,
+      "question_section": "hr",
+      "content": "만약 당신이 개발한 기능에 대한 사용자 피드백이 부정적이고, 심지어 당신의 디자인 결정에 대한 근본적인 오류를 지적한다면, 당신은 어떻게 대처하고 다음 단계를 어떻게 계획할 것입니까? 구체적인 상황과 당신의 행동, 그리고 그 이유를 설명해주세요.",
+      "intent": "비판적 피드백에 대한 수용 능력과 개선 의지 평가",
+      "level": 3
+    }
+  ],
+  "technical_questions": [
+    {
+      "question_id": 9,
+      "position_id": 1,
+      "question_section": "technical",
+      "content": "본인이 가장 자신 있는 기술 스택은 무엇이고, 어느 정도 수준이라고 생각하시나요?",
+      "intent": "기술적 자기 인식과 전문성 수준 파악",
+      "level": 1
+    },
+    {
+      "question_id": 10,
+      "position_id": 1,
+      "question_section": "technical",
+      "content": "최근에 학습한 새로운 기술이나 프레임워크가 있나요? 왜 학습하게 되었나요?",
+      "intent": "지속적 학습 의지와 기술 트렌드 관심도 평가",
+      "level": 1
+    },
+    {
+      "question_id": 11,
+      "position_id": 1,
+      "question_section": "technical",
+      "content": "코드 리뷰를 할 때 어떤 부분을 중점적으로 보시나요?",
+      "intent": "코드 품질에 대한 인식과 리뷰 능력 평가",
+      "level": 2
+    },
+    {
+      "question_id": 12,
+      "position_id": 1,
+      "question_section": "technical",
+      "content": "성능 최적화가 필요한 상황에서 어떤 접근 방식을 사용하시나요?",
+      "intent": "성능 문제 해결 능력과 접근 방법 평가",
+      "level": 2
+    },
+    {
+      "question_id": 13,
+      "position_id": 1,
+      "question_section": "technical",
+      "content": "본인이 작성한 코드 중 가장 자랑스러운 부분은 무엇인가요?",
+      "intent": "기술적 성취와 코드 품질에 대한 인식 평가",
+      "level": 2
+    },
+    {
+      "question_id": 14,
+      "position_id": 1,
+      "question_section": "technical",
+      "content": "당신이 개발자로서 스마트폰 앱을 만들었습니다. 앱에 꼭 추가하고 싶은 기능이 있나요? 기능은 어떤 것에 효율적으로 쓰이는 기능인지 말씀해 주세요.",
+      "intent": "개발 역량과 창의적 기능 구현 능력, 사용자 관점 사고 평가",
+      "level": 2
+    },
+    {
+      "question_id": 15,
+      "position_id": 1,
+      "question_section": "technical",
+      "content": "개발 프로젝트에서 가장 어려웠던 점은 무엇이었고, 그 어려움을 어떻게 극복했습니까? 당시 어떤 기술적, 혹은 비기술적 어려움을 겪었는지, 그리고 그 문제를 해결하기 위해 어떤 노력을 기울였는지 구체적으로 설명해주세요.",
+      "intent": "문제 해결 능력, 기술적 역량, 인내심과 지속적 노력 평가",
+      "level": 3
+    },
+    {
+      "question_id": 16,
+      "position_id": 1,
+      "question_section": "technical",
+      "content": "최근 관심 있게 보고 있는 기술 트렌드는 무엇이며, 그 이유는 무엇입니까? 해당 트렌드가 실제 업무에 어떻게 적용될 수 있을지 구체적인 예시를 들어 설명해주세요.",
+      "intent": "최신 기술 트렌드 이해도와 실무 적용 능력 평가",
+      "level": 3
+    },
+    {
+      "question_id": 17,
+      "position_id": 1,
+      "question_section": "technical",
+      "content": "만약 당신이 개발한 기능에 심각한 버그가 발견되어 서비스 장애를 일으켰다면, 당장의 문제 해결 외에 어떤 조치를 취하고 어떤 방식으로 책임을 질 것입니까? 구체적인 상황과 당신의 역할, 그리고 향후 재발 방지 방안까지 포함하여 설명해주세요.",
+      "intent": "위기 상황에서의 책임감과 문제 해결 능력, 재발 방지 의지 평가",
+      "level": 3
+    }
+  ],
+  "collaboration_questions": [
+    {
+      "question_id": 18,
+      "position_id": 1,
+      "question_section": "collaboration",
+      "content": "팀 프로젝트에서 본인의 역할은 주로 무엇인가요?",
+      "intent": "팀 내 역할 인식과 협업 스타일 파악",
+      "level": 1
+    },
+    {
+      "question_id": 19,
+      "position_id": 1,
+      "question_section": "collaboration",
+      "content": "다른 부서나 팀과 협업했던 경험이 있나요? 어떤 점이 어려웠나요?",
+      "intent": "조직 내 협업 능력과 소통 스킬 평가",
+      "level": 1
+    },
+    {
+      "question_id": 20,
+      "position_id": 1,
+      "question_section": "collaboration",
+      "content": "팀원 중 업무 진행이 느린 사람이 있다면 어떻게 도움을 주시겠나요?",
+      "intent": "팀원 지원 의지와 문제 해결 능력 평가",
+      "level": 2
+    },
+    {
+      "question_id": 21,
+      "position_id": 1,
+      "question_section": "collaboration",
+      "content": "프로젝트 일정이 촉박한 상황에서 팀의 의견이 나뉘었다면 어떻게 하시겠나요?",
+      "intent": "압박 상황에서의 의사결정 능력과 리더십 평가",
+      "level": 2
+    },
+    {
+      "question_id": 22,
+      "position_id": 1,
+      "question_section": "collaboration",
+      "content": "팀의 목표 달성을 위해 개인의 이익을 포기했던 경험이 있나요?",
+      "intent": "팀 우선 사고와 헌신도 평가",
+      "level": 2
+    },
+    {
+      "question_id": 23,
+      "position_id": 1,
+      "question_section": "collaboration",
+      "content": "사람들과 협업할 때 가장 어려웠던 점이 있었나요? 있다면 무엇이었는지와 어떻게 극복하셨는지 지원자님의 경험을 답해 주세요.",
+      "intent": "협업 시 어려움에 대한 인식과 극복 능력 평가",
+      "level": 2
+    },
+    {
+      "question_id": 24,
+      "position_id": 1,
+      "question_section": "collaboration",
+      "content": "팀 프로젝트에서 팀원과 의견 충돌이 발생했을 때, 효과적인 소통과 협력을 통해 문제를 해결하고 최적의 결과를 도출해낸 경험을 설명해주세요. 당시 상황과 본인의 역할, 그리고 그 경험을 통해 배운 점을 중심으로 답변해주시면 좋겠습니다.",
+      "intent": "의사소통 능력, 갈등 해결 능력, 협업 능력을 종합적으로 평가",
+      "level": 3
+    },
+    {
+      "question_id": 25,
+      "position_id": 1,
+      "question_section": "collaboration",
+      "content": "만약 당신이 리드 개발자이고, 팀원 중 한 명이 프로젝트 마감일을 놓치고, 심지어 그 이유가 '개인적인 문제'라는 다소 추상적인 설명으로만 해명한다면, 당신은 어떻게 상황을 관리하고 해결해 나갈 것입니까? 구체적인 상황과 당신의 행동, 그리고 그 이유를 설명해주세요.",
+      "intent": "리더십과 팀 관리 능력, 어려운 상황에서의 의사결정 능력 평가",
+      "level": 3
+    },
+    {
+      "question_id": 26,
+      "position_id": 1,
+      "question_section": "collaboration",
+      "content": "대규모 프로젝트에서 여러 부서와의 협업 시 발생 가능한 병목 현상을 예측하고, 이를 해결하기 위한 당신만의 전략은 무엇입니까? 구체적인 예시와 함께 설명해주세요.",
+      "intent": "대규모 협업에서의 문제 예측 능력과 해결 전략 수립 능력 평가",
+      "level": 3
+    }
+  ]
+}
