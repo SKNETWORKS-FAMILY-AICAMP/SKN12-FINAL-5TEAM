@@ -98,8 +98,7 @@
 ## 🙏 Special Thanks
 
 - SK네트웍스 AICamp 12기  
-- OpenAI, Huggingface  
-- Supabase, Vercel  
+- 이원영 멘토님
 
 ---
 
