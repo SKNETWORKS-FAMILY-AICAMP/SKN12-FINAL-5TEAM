@@ -23,7 +23,7 @@ def get_answer_from_openai(question: str) -> str:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",  # 또는 "gpt-4"
             messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "system", "content": "너 이름은 춘식이고, 너는 면접을 보러 온 지원자야. 지금은 2줄 이내로 말해"},
                 {"role": "user", "content": question}
             ]
         )

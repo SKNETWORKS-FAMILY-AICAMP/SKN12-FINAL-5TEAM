@@ -1,192 +1,244 @@
+// =======================================================================================
+// React 훅 및 주요 라이브러리 임포트
+// =======================================================================================
 import { useState, useEffect, useRef, useCallback } from 'react';
-import './App.css';
+import './App.css'; // 애플리케이션 전반에 사용될 스타일시트
 
-// 동영상 플레이어 컴포넌트
-const VideoPlayer = ({ isActive, onFinished, displayText }) => {
-  // 비디오 재생 로직 제거
+// =======================================================================================
+// 이미지 에셋 임포트
+// =======================================================================================
+import image1 from './assets/Whisk_4bfd948033.jpg';
+import image2 from './assets/Whisk_59d5cab285.jpg';
+import image3 from './assets/Whisk_998640dfbb.jpg';
+import imageFromFile from './assets/image.png';
+
+// =======================================================================================
+// VideoPlayer 컴포넌트: 면접관 또는 AI의 비디오(또는 텍스트)를 표시합니다.
+// =======================================================================================
+const VideoPlayer = ({ isActive, onFinished, displayText, imageSrc }) => {
   useEffect(() => {
     let timer;
     if (isActive) {
       timer = setTimeout(() => {
         onFinished();
-      }, 5000); // 5초 후 실행
+      }, 5000);
     }
     return () => clearTimeout(timer);
   }, [isActive, onFinished]);
 
   return (
     <div className={`box video-player ${isActive ? 'active' : ''}`}>
-      <div className="video-placeholder">{displayText || "Video Player"}</div>
+      {imageSrc ? (
+        <img src={imageSrc} alt="Video player placeholder" className="video-placeholder-image" />
+      ) : (
+        <div className="video-placeholder">{displayText || "Video Player"}</div>
+      )}
     </div>
   );
 };
 
-// 웹캠 컴포넌트
-const Webcam = ({ isActive, setTranscript, onEndAnswer }) => {
+// =======================================================================================
+// Webcam 컴포넌트 (최종 수정 버전): 오디오 스트림 복제 및 상태 관리 강화
+// =======================================================================================
+const Webcam = ({ isInterviewing, isAnswering, setTranscript, onEndAnswer }) => {
   const videoRef = useRef(null);
-  const audioStreamRef = useRef(null);
   const recognitionRef = useRef(null);
-  const [remainingTime, setRemainingTime] = useState(30); // 30초 제한
-
+  const mediaStreamRef = useRef(null);
   const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const dataArrayRef = useRef(null);
   const silenceTimerRef = useRef(null);
-  const SILENCE_THRESHOLD = 0.03; // 침묵 임계값 (0.0 ~ 1.0)
-  const SILENCE_DURATION = 3000; // 침묵 지속 시간 (3초)
   
-  const isActiveRef = useRef(isActive);
+  const [remainingTime, setRemainingTime] = useState(30);
+  const [isListening, setIsListening] = useState(false);
 
+  // Props를 ref에 담아 useEffect 의존성 문제를 회피합니다.
+  const onEndAnswerRef = useRef(onEndAnswer);
+  useEffect(() => { onEndAnswerRef.current = onEndAnswer; }, [onEndAnswer]);
+
+  const setTranscriptRef = useRef(setTranscript);
+  useEffect(() => { setTranscriptRef.current = setTranscript; }, [setTranscript]);
+
+  // 미디어 장치 설정 및 해제
   useEffect(() => {
-    isActiveRef.current = isActive;
-  }, [isActive]);
-
-  // 타이머 로직
-  useEffect(() => {
-    let timerInterval;
-    if (isActive) {
-      setRemainingTime(30);
-      timerInterval = setInterval(() => {
-        setRemainingTime(prevTime => {
-          if (prevTime <= 1) {
-            clearInterval(timerInterval);
-            onEndAnswer();
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
-    } else {
-      clearInterval(timerInterval);
-    }
-
-    return () => clearInterval(timerInterval);
-  }, [isActive, onEndAnswer]);
-
-  useEffect(() => {
-    const getMedia = async () => {
+    const setupMedia = async () => {
+      console.log("미디어 장치 설정을 시작합니다.");
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        mediaStreamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-        audioStreamRef.current = stream;
 
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioContextRef.current.createMediaStreamSource(stream);
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
-        dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
-        source.connect(analyserRef.current);
+        // 1. 음성 인식을 위한 SpeechRecognition 설정
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'ko-KR';
 
-        const detectSilence = () => {
-          if (!analyserRef.current) return;
-          analyserRef.current.getByteTimeDomainData(dataArrayRef.current);
-          let sumSquares = 0;
-          for (const amplitude of dataArrayRef.current) {
-            sumSquares += (amplitude / 128.0 - 1.0) ** 2;
-          }
-          const rms = Math.sqrt(sumSquares / dataArrayRef.current.length);
-
-          if (rms < SILENCE_THRESHOLD) {
-            if (!silenceTimerRef.current) {
-              silenceTimerRef.current = setTimeout(() => {
-                if (isActiveRef.current) {
-                  onEndAnswer();
-                }
-              }, SILENCE_DURATION);
+          recognition.onstart = () => {
+            console.log("음성 인식이 시작되었습니다.");
+            setIsListening(true);
+          };
+          recognition.onend = () => {
+            console.log("음성 인식이 종료되었습니다.");
+            setIsListening(false);
+          };
+          recognition.onresult = (event) => {
+            let finalTranscript = '';
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+              } else {
+                interimTranscript += event.results[i][0].transcript;
+              }
             }
-          } else {
-            if (silenceTimerRef.current) {
-              clearTimeout(silenceTimerRef.current);
-              silenceTimerRef.current = null;
+            setTranscriptRef.current(finalTranscript + interimTranscript);
+          };
+          recognition.onerror = (event) => {
+            console.error("음성 인식 오류:", event.error);
+            if (event.error !== 'no-speech') {
+              setTranscriptRef.current(`오류: ${event.error}`);
             }
-          }
-          requestAnimationFrame(detectSilence);
-        };
-        requestAnimationFrame(detectSilence);
+          };
+          recognitionRef.current = recognition;
+        } else {
+          console.warn("이 브라우저에서는 음성 인식을 지원하지 않습니다.");
+          setTranscriptRef.current("음성 인식을 지원하지 않습니다.");
+        }
+
+        // 2. 침묵 감지를 위한 AudioContext 설정 (스트림 복제 사용)
+        const audioStreamForSilence = stream.clone();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') await audioContext.resume();
+        const source = audioContext.createMediaStreamSource(audioStreamForSilence);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        source.connect(analyser);
+        audioContextRef.current = { audioContext, analyser, dataArray, stream: audioStreamForSilence };
+        console.log("오디오 스트림을 복제하여 침묵 감지를 설정했습니다.");
 
       } catch (err) {
-        console.error("미디어 접근 오류:", err);
+        console.error("미디어 장치 설정 중 오류 발생:", err);
+        setTranscriptRef.current(`미디어 오류: ${err.name}`);
       }
     };
 
-    getMedia();
+    const cleanupMedia = () => {
+      console.log("미디어 장치를 정리합니다.");
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.stream.getTracks().forEach(track => track.stop());
+        audioContextRef.current.audioContext.close();
+        audioContextRef.current = null;
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
+      }
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    };
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'ko-KR';
-
-      recognitionRef.current.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        setTranscript(finalTranscript + interimTranscript);
-      };
-
-      recognitionRef.current.onerror = (event) => console.error("Speech recognition error:", event.error);
-
-      recognitionRef.current.onend = (event) => {
-        if (isActive) {
-          recognitionRef.current.start(); // 자동 재시작 활성화
-        }
-      };
+    if (isInterviewing) {
+      setupMedia();
     } else {
-      console.warn("Web Speech API not supported in this browser.");
+      cleanupMedia();
     }
+    return cleanupMedia;
+  }, [isInterviewing]);
 
-    return () => {
-      if (audioStreamRef.current) {
-        audioStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (videoRef.current) {
-        videoRef.current.srcObject = null; // 비디오 요소 소스 해제
-      }
-      if (recognitionRef.current) recognitionRef.current.stop();
-      if (audioContextRef.current) audioContextRef.current.close();
-      clearTimeout(silenceTimerRef.current);
-    };
-  }, [setTranscript, onEndAnswer]);
-
+  // 답변 상태(isAnswering)에 따라 기능 제어
   useEffect(() => {
-    if (recognitionRef.current) {
-      if (isActive) {
-        setTranscript('');
-        recognitionRef.current.start();
-      } else {
+    if (!isAnswering) {
+      if (recognitionRef.current && isListening) {
         recognitionRef.current.stop();
       }
+      return;
     }
-  }, [isActive, setTranscript]);
+
+    // 답변이 시작되면, 음성 인식이 실행 중이 아니라면 시작
+    if (recognitionRef.current && !isListening) {
+      setTranscriptRef.current('');
+      recognitionRef.current.start();
+    }
+
+    // 답변 시간 타이머 설정
+    setRemainingTime(30);
+    const timerInterval = setInterval(() => {
+      setRemainingTime(prev => {
+        if (prev <= 1) {
+          clearInterval(timerInterval);
+          console.log("시간 초과로 답변을 종료합니다.");
+          onEndAnswerRef.current();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // 침묵 감지 로직
+    let silenceFrameId;
+    const SILENCE_THRESHOLD = 0.01;
+    const SILENCE_DURATION = 3000;
+
+    const detectSilence = () => {
+      if (!audioContextRef.current) {
+        silenceFrameId = requestAnimationFrame(detectSilence);
+        return;
+      }
+      const { analyser, dataArray } = audioContextRef.current;
+      analyser.getByteTimeDomainData(dataArray);
+      const sumSquares = dataArray.reduce((acc, amp) => acc + ((amp / 128.0) - 1.0) ** 2, 0);
+      const rms = Math.sqrt(sumSquares / dataArray.length);
+
+      if (rms < SILENCE_THRESHOLD) {
+        if (!silenceTimerRef.current) {
+          silenceTimerRef.current = setTimeout(() => {
+            console.log("침묵이 감지되어 답변을 종료합니다.");
+            onEndAnswerRef.current();
+          }, SILENCE_DURATION);
+        }
+      } else {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      silenceFrameId = requestAnimationFrame(detectSilence);
+    };
+    
+    silenceFrameId = requestAnimationFrame(detectSilence);
+
+    return () => {
+      clearInterval(timerInterval);
+      cancelAnimationFrame(silenceFrameId);
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    };
+  }, [isAnswering, isListening]);
 
   return (
-    <div className={`box webcam ${isActive ? 'active' : ''}`}>
+    <div className={`box webcam ${isAnswering ? 'active' : ''}`}>
       <video ref={videoRef} autoPlay playsInline muted className="webcam-video"></video>
-      {isActive && <div className="microphone-indicator">마이크 활성화됨</div>}
-      {isActive && <div className="remaining-time">남은 시간: {remainingTime}초</div>}
+      {isAnswering && <div className="microphone-indicator">마이크 활성화됨</div>}
+      {isAnswering && <div className="remaining-time">남은 시간: {remainingTime}초</div>}
     </div>
   );
 };
 
-// App 컴포넌트
+// =======================================================================================
+// App 컴포넌트: 애플리케이션의 최상위 컴포넌트
+// =======================================================================================
 function App() {
   const [interviewState, setInterviewState] = useState('idle');
   const [activePlayerIndex, setActivePlayerIndex] = useState(null);
   const [activeTtsPlayerIndex, setActiveTtsPlayerIndex] = useState(null);
   const [aiAnswer, setAiAnswer] = useState('');
-  const [transcript, setTranscript] = useState(''); // 사용자의 답변 텍스트
-  const [currentQuestion, setCurrentQuestion] = useState(''); // 현재 사용자가 답변 중인 질문
-  const audioRef = useRef(new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'));
+  const [transcript, setTranscript] = useState('');
+  const [currentQuestion, setCurrentQuestion] = useState('');
 
   const speakTTS = (text, playerIndex, onEndCallback) => {
     if (!text) return;
@@ -198,7 +250,7 @@ function App() {
       if (onEndCallback) onEndCallback();
     };
     utterance.onerror = (event) => {
-      console.error("TTS error:", event.error);
+      console.error("TTS 재생 오류:", event.error);
       setActiveTtsPlayerIndex(null);
       if (onEndCallback) onEndCallback();
     };
@@ -207,10 +259,8 @@ function App() {
 
   const handleEndAnswer = useCallback(() => {
     if (interviewState !== 'answering') return;
-
-    console.log("handleEndAnswer called. Saving user's answer.");
+    console.log("handleEndAnswer가 호출되었습니다. 사용자 답변을 서버에 저장합니다.");
     
-    // 사용자 답변 로그 저장
     fetch('/api/save_log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -221,15 +271,15 @@ function App() {
       })
     })
     .then(res => res.json())
-    .then(data => console.log('User log saved:', data.message))
-    .catch(err => console.error('Error saving user log:', err));
+    .then(data => console.log('사용자 로그 저장 성공:', data.message))
+    .catch(err => console.error('사용자 로그 저장 중 오류 발생:', err));
 
     setInterviewState('feedbackAndChunsikIntro');
     setActivePlayerIndex(null);
   }, [interviewState, currentQuestion, transcript]);
 
   useEffect(() => {
-    console.log("interviewState changed to:", interviewState);
+    console.log("면접 상태가 다음으로 변경됨:", interviewState);
     if (['initialQuestion', 'feedbackAndChunsikIntro', 'subsequentQuestion'].includes(interviewState)) {
       window.speechSynthesis.cancel();
 
@@ -260,17 +310,14 @@ function App() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ who: '춘식이', question: questionToChunsik, answer: chunsikAnswer })
-            })
-            .then(logRes => logRes.json())
-            .then(logData => console.log('Chunsik log save status:', logData.message))
-            .catch(logError => console.error('Error saving chunsik log:', logError));
+            });
 
             speakTTS(chunsikAnswer, 3, () => {
               setInterviewState('subsequentQuestion');
             });
           })
           .catch(error => {
-            console.error("Error fetching AI answer:", error);
+            console.error("AI 답변을 가져오는 중 오류 발생:", error);
             const fallbackAnswer = "죄송합니다. 지금은 답변하기 어렵습니다.";
             setAiAnswer(fallbackAnswer);
             speakTTS(fallbackAnswer, 3, () => setInterviewState('subsequentQuestion'));
@@ -289,49 +336,49 @@ function App() {
   }, [interviewState]);
 
   const handleStart = () => {
-    console.log("handleStart called.");
-    // 기존 로그 파일 초기화 요청
+    console.log("handleStart가 호출되었습니다.");
     fetch('/api/clear_log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     })
     .then(res => res.json())
-    .then(data => console.log('Log clear status:', data.message))
-    .catch(err => console.error('Error clearing log:', err));
-
+    .then(data => console.log('로그 초기화 상태:', data.message))
+    .catch(err => console.error('로그 초기화 중 오류 발생:', err));
     setInterviewState('initialQuestion');
   };
+
   const handleStop = () => {
-    console.log("handleStop called.");
+    console.log("handleStop가 호출되었습니다.");
     setInterviewState('idle');
     setActivePlayerIndex(null);
     setActiveTtsPlayerIndex(null);
-    setAiAnswer(''); // 춘식이 답변 초기화
-    setTranscript(''); // 사용자 답변 초기화
-    setCurrentQuestion(''); // 현재 질문 초기화
-    window.speechSynthesis.cancel(); // 혹시 재생 중인 TTS가 있다면 중지
+    setAiAnswer('');
+    setTranscript('');
+    setCurrentQuestion('');
+    window.speechSynthesis.cancel();
   };
 
   return (
     <div className="app-container">
       <div className="row">
-        <VideoPlayer isActive={activeTtsPlayerIndex === 0} onFinished={() => {}} />
+        <VideoPlayer isActive={activeTtsPlayerIndex === 0} onFinished={() => {}} imageSrc={image1} />
         <VideoPlayer 
           isActive={activePlayerIndex === 1 || activeTtsPlayerIndex === 1} 
           onFinished={() => {}} 
           displayText={currentQuestion}
+          imageSrc={image2}
         />
-        <VideoPlayer isActive={false} onFinished={() => {}} />
+        <VideoPlayer isActive={false} onFinished={() => {}} imageSrc={image3} />
       </div>
       <div className="row">
-        {interviewState !== 'idle' && (
+        {interviewState !== 'idle' ? (
           <Webcam 
-            isActive={interviewState === 'answering'} 
+            isInterviewing={interviewState !== 'idle'}
+            isAnswering={interviewState === 'answering'}
             setTranscript={setTranscript}
             onEndAnswer={handleEndAnswer}
           />
-        )}
-        {interviewState === 'idle' && (
+        ) : (
           <div className="box webcam">
             <div className="video-placeholder">웹캠 비활성화됨</div>
           </div>
@@ -346,6 +393,7 @@ function App() {
           isActive={activeTtsPlayerIndex === 3} 
           onFinished={() => {}} 
           displayText={interviewState === 'feedbackAndChunsikIntro' ? (aiAnswer || '생각 중...') : 'Video Player'}
+          imageSrc={imageFromFile}
         />
       </div>
     </div>
