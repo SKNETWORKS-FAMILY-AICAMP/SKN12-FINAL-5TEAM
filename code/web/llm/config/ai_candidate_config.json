@@ -1,0 +1,72 @@
+{
+  "model_settings": {
+    "openai_gpt4o_mini": {
+      "enabled": false,
+      "api_key": null,
+      "max_tokens": 600,
+      "temperature": 0.7,
+      "timeout": 30.0,
+      "custom_params": null
+    },
+    "openai_gpt4": {
+      "enabled": true,
+      "api_key": null,
+      "max_tokens": 1000,
+      "temperature": 0.6,
+      "timeout": 45.0,
+      "custom_params": null
+    },
+    "openai_gpt35": {
+      "enabled": true,
+      "api_key": null,
+      "max_tokens": 500,
+      "temperature": 0.8,
+      "timeout": 25.0,
+      "custom_params": null
+    },
+    "google_gemini_pro": {
+      "enabled": false,
+      "api_key": null,
+      "max_tokens": 700,
+      "temperature": 0.7,
+      "timeout": 35.0,
+      "custom_params": null
+    },
+    "kt_belief": {
+      "enabled": false,
+      "api_key": null,
+      "max_tokens": 600,
+      "temperature": 0.7,
+      "timeout": 40.0,
+      "custom_params": null
+    }
+  },
+  "quality_settings": {
+    "default_level": 8,
+    "min_answer_length": 50,
+    "max_answer_length": 500,
+    "enable_post_processing": true,
+    "quality_check_enabled": true
+  },
+  "persona_settings": {
+    "use_real_personas": true,
+    "fallback_to_default": true,
+    "persona_data_path": "data/candidate_personas.json",
+    "enable_persona_validation": true
+  },
+  "answer_settings": {
+    "include_confidence_score": true,
+    "enable_answer_comparison": true,
+    "max_retries": 3,
+    "enable_fallback_answers": true,
+    "answer_cache_enabled": true,
+    "cache_duration_minutes": 60
+  },
+  "logging_settings": {
+    "log_level": "INFO",
+    "log_requests": true,
+    "log_responses": true,
+    "log_performance": true,
+    "log_file_path": "logs/ai_candidate.log"
+  }
+}
