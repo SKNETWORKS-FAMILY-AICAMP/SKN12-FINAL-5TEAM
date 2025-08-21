@@ -913,7 +913,7 @@ export const interviewApi = {
   // 캘리브레이션 결과 조회
   async getCalibrationResult(sessionId: string): Promise<CalibrationResult> {
     try {
-      const response = await apiClient.get<CalibrationResult>(`/test/gaze/calibration/result/${sessionId}`);
+      const response = await apiClient.get<CalibrationResult>(`/gaze/calibration/result/${sessionId}`);
       return response.data;
     } catch (error) {
       console.error(`캘리브레이션 결과 조회 API 실패 (세션 ID: ${sessionId}):`, error);

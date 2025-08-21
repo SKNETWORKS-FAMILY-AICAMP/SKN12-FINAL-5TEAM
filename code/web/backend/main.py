@@ -28,12 +28,9 @@ try:
     # from routers.migration import migration_router
     # from routers.database import database_router
     
-    # S3 비디오 API 임포트
-    sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 's3'))
-    from test.video_api import router as test_video_router
-    
-    # 시선 분석 API 임포트
-    from test.gaze_api import get_gaze_router
+    # 미디어 및 시선 분석 API 임포트 (services 레이어 사용)
+    from routers.media import media_router
+    from routers.gaze import router as gaze_router
 
     DATABASE_ENABLED = True
     print("데이터베이스 확장 로드 성공")
@@ -181,27 +178,14 @@ if DATABASE_ENABLED:
     app.include_router(posting_router)
     app.include_router(position_router)
     app.include_router(interview_router)
-    app.include_router(test_video_router)  # S3 테스트 비디오 API 라우터 추가
-    app.include_router(get_gaze_router())  # 시선 분석 API 라우터 추가
+    app.include_router(media_router)  # 미디어 파일 관리 API
+    app.include_router(gaze_router)   # 시선 분석 API
     # app.include_router(migration_router)
     # app.include_router(database_router)
     
-    # === 김원우 작성 시작 ===
-    # 새로운 표준 구조 라우터 등록
-    try:
-        from routers.media import media_router
-        from routers.gaze import gaze_router
-        
-        app.include_router(media_router)
-        app.include_router(gaze_router)
-        
-        print("✅ 새로운 미디어 및 시선 분석 라우터 등록 완료")
-        print("   - /media/* : S3 미디어 파일 관리 API")  
-        print("   - /gaze/* : 시선 분석 및 캘리브레이션 API")
-    except ImportError as e:
-        print(f"⚠️ 새로운 라우터 로드 실패: {e}")
-        print("   기존 test 라우터를 계속 사용합니다.")
-    # === 김원우 작성 끝 ===
+    print("✅ 미디어 및 시선 분석 라우터 등록 완료")
+    print("   - /media/* : S3 미디어 파일 관리 API")  
+    print("   - /gaze/* : 시선 분석 및 캘리브레이션 API")
 
     print("="*100)
     print("API 라우터 등록 완료")

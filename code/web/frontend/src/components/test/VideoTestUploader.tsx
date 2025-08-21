@@ -17,14 +17,14 @@ const tryCompleteUpload = async (mediaId: string, fileSize: number): Promise<voi
     { method: 'PUT', url: `/video/complete/${mediaId}`, body: { file_size: fileSize } },
     
     // 추가 시도 패턴들
-    { method: 'PATCH', url: `/video/test/complete/${mediaId}?file_size=${fileSize}` },
-    { method: 'POST', url: `/video/test/complete/${mediaId}?file_size=${fileSize}` },
-    { method: 'PUT', url: `/video/test/complete/${mediaId}?file_size=${fileSize}` },
-    { method: 'PATCH', url: `/video/test/${mediaId}/complete?file_size=${fileSize}` },
-    { method: 'POST', url: `/video/test/${mediaId}/complete?file_size=${fileSize}` },
-    { method: 'PUT', url: `/video/test/${mediaId}/complete?file_size=${fileSize}` },
-    { method: 'PATCH', url: `/video/test/media/${mediaId}/complete?file_size=${fileSize}` },
-    { method: 'POST', url: `/video/test/media/${mediaId}/complete?file_size=${fileSize}` }
+    { method: 'PATCH', url: `/media/complete/${mediaId}?file_size=${fileSize}` },
+    { method: 'POST', url: `/media/complete/${mediaId}?file_size=${fileSize}` },
+    { method: 'PUT', url: `/media/complete/${mediaId}?file_size=${fileSize}` },
+    { method: 'PATCH', url: `/media/${mediaId}/complete?file_size=${fileSize}` },
+    { method: 'POST', url: `/media/${mediaId}/complete?file_size=${fileSize}` },
+    { method: 'PUT', url: `/media/${mediaId}/complete?file_size=${fileSize}` },
+    { method: 'PATCH', url: `/media/test/${mediaId}/complete?file_size=${fileSize}` },
+    { method: 'POST', url: `/media/test/${mediaId}/complete?file_size=${fileSize}` }
   ];
 
   const token = tokenManager.getToken();
@@ -143,7 +143,7 @@ const VideoTestUploader: React.FC<UploaderProps> = ({
       };
       console.log('🔍 Request headers:', headers);
       
-      const response = await apiClient.post('/video/test/upload-url', {
+      const response = await apiClient.post('/media/test/upload-url', {
         interview_id: interviewId,  // 실제 면접 ID 사용
         file_name: fileName,
         file_type: 'video',

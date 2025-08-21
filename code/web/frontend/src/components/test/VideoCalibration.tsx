@@ -83,7 +83,7 @@ const VideoCalibration: React.FC<CalibrationProps> = ({ onCalibrationComplete, o
       const imageData = canvas.toDataURL('image/jpeg', 0.8);
       const formData = new FormData();
       formData.append('frame_data', imageData);
-      const response = await apiClient.post(`/test/gaze/calibration/frame/${sessionId}`, formData, {
+      const response = await apiClient.post(`/gaze/calibration/frame/${sessionId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const feedback: FrameFeedback = response.data as FrameFeedback;
@@ -139,7 +139,7 @@ const VideoCalibration: React.FC<CalibrationProps> = ({ onCalibrationComplete, o
       const user = tokenManager.getUser();
       const userId = user?.user_id || null;
       
-      const response = await apiClient.post('/test/gaze/calibration/start', 
+      const response = await apiClient.post('/gaze/calibration/start', 
         { user_id: userId },
         { timeout: GAZE_CONSTANTS.API_TIMEOUT }
       );
@@ -160,7 +160,7 @@ const VideoCalibration: React.FC<CalibrationProps> = ({ onCalibrationComplete, o
     if (statusCheckInterval.current) clearInterval(statusCheckInterval.current);
     statusCheckInterval.current = setInterval(async () => {
       try {
-        const response = await apiClient.get(`/test/gaze/calibration/status/${sessionId}`);
+        const response = await apiClient.get(`/gaze/calibration/status/${sessionId}`);
         const statusData: CalibrationStatusResponse = response.data as CalibrationStatusResponse;
         setStatus(statusData);
         if (statusData.current_phase === 'completed') {

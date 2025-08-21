@@ -22,7 +22,7 @@ const VideoGazeAnalysis: React.FC<GazeAnalysisProps> = ({
       console.log('🔍 시선 분석 시작:', { videoUrl, calibrationSessionId });
       
       // 🚀 apiClient를 사용하여 인증 헤더 자동 추가
-      const response = await apiClient.post('/test/gaze/analyze', {
+      const response = await apiClient.post('/gaze/analyze', {
         video_url: videoUrl,
         session_id: calibrationSessionId
       });
@@ -52,7 +52,7 @@ const VideoGazeAnalysis: React.FC<GazeAnalysisProps> = ({
     statusCheckInterval.current = setInterval(async () => {
       try {
         // 🚀 apiClient 사용
-        const response = await apiClient.get(`/test/gaze/analyze/status/${taskId}`);
+        const response = await apiClient.get(`/gaze/analyze/status/${taskId}`);
         const statusData = response.data as AnalysisStatusResponse;
 
         console.log('📊 분석 상태:', statusData);

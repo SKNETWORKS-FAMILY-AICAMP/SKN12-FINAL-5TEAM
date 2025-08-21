@@ -37,12 +37,13 @@ from schemas.gaze import (
     GazeAnalysisTriggerRequest, GazeAnalysisTriggerResponse, ErrorResponse
 )
 
-# 기존 gaze 모듈들 import (서비스 레이어로 이전 전까지 임시 사용)
+# 시선 분석 서비스 import
 try:
-    from test.gaze_calibration import calibration_manager
-    from test.gaze_analysis import gaze_analyzer, GazeAnalysisResult as GazeAnalyzerResultData
+    from services.gaze_service import GazeCalibrationManager, GazeAnalyzer, GazeAnalysisResult as GazeAnalyzerResultData
+    calibration_manager = GazeCalibrationManager()
+    gaze_analyzer = GazeAnalyzer()
 except ImportError as e:
-    print(f"[WARNING] 기존 gaze 모듈 import 실패: {e}")
+    print(f"[WARNING] 시선 분석 서비스 import 실패: {e}")
     calibration_manager = None
     gaze_analyzer = None
 
