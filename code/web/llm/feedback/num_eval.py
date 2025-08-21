@@ -57,5 +57,4 @@ def evaluate_single_qa(question: str, answer: str, model=None, encoder=None) -> 
 
 # 이 모듈은 다른 파일에서 import하여 사용됩니다.
 # 직접 실행이 필요한 경우 main.py를 사용하세요.
-if __name__ == "__main__":
-    print("num_eval.py는 모듈로 사용됩니다. main.py를 실행하세요.")
+# 모듈 파일 - 직접 실행하지 말고 import해서 사용하세요

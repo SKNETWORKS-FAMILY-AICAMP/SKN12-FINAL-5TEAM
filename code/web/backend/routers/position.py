@@ -6,7 +6,7 @@ from backend.schemas.position import PositionResponse
 position_router = APIRouter(prefix="/position", tags=["Position"])
 
 # 🟢 GET /position – 전체 직군 목록 조회
-@position_router.get("/", response_model=List[PositionResponse])
+@position_router.get("", response_model=List[PositionResponse])
 def get_positions():
     """
     모든 직군(position) 목록을 조회합니다.

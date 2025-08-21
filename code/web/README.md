@@ -12,6 +12,7 @@
 - **동적 면접관 하이라이트**: 질문 유형에 따라 해당 면접관이 강조
 - **세션 완전 분리**: 사용자와 AI가 각각 독립적인 세션에서 면접 진행
 - **실시간 타임라인**: 모든 질문과 답변이 시간순으로 표시
+- **질문 생성 방식 표시**: DB 참조 질문 vs LLM 실시간 생성 질문 구분 표시
 
 ### 🏢 지원 기업 (7개)
 | 기업 | 특화 분야 | 핵심 기술 |
@@ -42,6 +43,7 @@
 - **📊 CompanyDataLoader**: 회사 정보 효율적 관리 클래스
 - **🔄 자동 디버깅**: Import 오류 자동 감지 및 수정 시스템
 - **⚡ 성능 최적화**: 새로운 구조로 메모리 사용량 및 응답 속도 개선
+- **🎯 질문 생성 방식 분석**: DB 템플릿 기반 vs LLM 실시간 생성 구분 표시
 
 ## 🛠️ 기술 스택
 
@@ -52,29 +54,48 @@
 - **Tailwind CSS 3.4.17** - 유틸리티 우선 CSS
 - **React Router 7.7.0** - 라우팅
 - **Axios 1.10.0** - API 통신
+- **@headlessui/react 2.2.4** - 접근성 있는 UI 컴포넌트
+- **@heroicons/react 2.2.0** - 아이콘 라이브러리
 
-#### Backend (새로운 계층화 구조)
-- **FastAPI** - 고성능 비동기 웹 프레임워크 (API 계층)
+#### Backend (계층화 구조)
+- **FastAPI 0.104.1** - 고성능 비동기 웹 프레임워크 (API 계층)
 - **Service Layer** - 비즈니스 로직 중앙 관리
 - **Python 3.8+** - 메인 언어
-- **Uvicorn** - ASGI 서버
-- **Supabase Python Client 2.17.0** - 데이터베이스 연결
+- **Uvicorn 0.24.0** - ASGI 서버
+- **Pydantic 2.11.7** - 데이터 검증 및 직렬화
 
 #### Database
 - **Supabase (PostgreSQL)** - 클라우드 데이터베이스
+- **Supabase Python Client 2.17.0** - 데이터베이스 연결
+- **psycopg2-binary 2.9.9** - PostgreSQL 어댑터
 - **Row Level Security (RLS)** - 보안 관리
 - **Real-time subscriptions** - 실시간 데이터 동기화
 
-#### LLM/AI (새로운 모듈형 구조)
+#### LLM/AI (모듈형 구조)
 - **OpenAI GPT-4o-mini** - 메인 AI 모델
-- **GPT-4 & GPT-3.5** - 추가 모델 옵션
+- **OpenAI 1.3.7** - OpenAI API 클라이언트
+- **tiktoken 0.5.1** - 토큰 카운팅
 - **Modular LLM Architecture** - 역할별 분리된 AI 모듈
-  - **Interviewer Module** - 질문 생성 전담
+  - **Interviewer Module** - 질문 생성 전담 (DB 템플릿 + LLM 생성)
   - **Candidate Module** - AI 답변 생성 전담
   - **Feedback Module** - 답변 평가 전담
   - **Shared Module** - 공통 모델 및 유틸리티
 
-## 🏗️ 새로운 프로젝트 구조 (v3.0)
+#### 개발 도구
+- **pytest 7.4.3** - 테스트 프레임워크
+- **pytest-asyncio 0.21.1** - 비동기 테스트
+- **black 23.11.0** - 코드 포매터
+- **isort 5.12.0** - import 정렬
+
+#### 추가 라이브러리
+- **pandas 2.1.3** - 데이터 처리 및 테스트 결과 분석
+- **numpy 1.25.2** - 수치 계산
+- **loguru 0.7.2** - 로깅
+- **python-dotenv 1.0.0** - 환경 변수 관리
+- **httpx 0.27.0** - 비동기 HTTP 클라이언트
+- **openpyxl** - Excel 파일 처리 (테스트 결과 저장)
+
+## 🏗️ 프로젝트 구조 (v3.0)
 
 ```
 yoseop_1/
@@ -90,9 +111,9 @@ yoseop_1/
 │   ├── main.py             # FastAPI 메인 애플리케이션 (API 계층)
 │   ├── services/           # 🆕 서비스 계층
 │   │   └── interview_service.py  # 비즈니스 로직 중앙 관리
-│   └── extensions/         # 확장 기능들
-│       ├── database_integration.py    # 데이터베이스 API
-│       └── migration_api.py          # 마이그레이션 API
+│   ├── routers/            # API 라우터
+│   ├── models/             # 데이터 모델
+│   └── schemas/            # API 스키마
 │
 ├── 🗄️ database/             # 데이터베이스 레이어
 │   ├── supabase_client.py   # Supabase 클라이언트
@@ -108,6 +129,7 @@ yoseop_1/
 │   │   ├── comparison_session.py # 비교 면접 세션 로직
 │   │   └── models.py      # 세션 관련 데이터 모델
 │   ├── interviewer/        # 🆕 면접관 모듈 (질문 생성)
+│   │   ├── question_generator.py    # 핵심 질문 생성기
 │   │   ├── service.py      # 개인화된 면접 시스템
 │   │   ├── document_processor.py  # 문서 처리
 │   │   ├── prompt_templates.py    # 회사별 프롬프트 템플릿
@@ -137,6 +159,9 @@ yoseop_1/
 │   └── tests/             # 🆕 테스트 관련 스크립트
 │       └── test_server.py
 │
+├── 🧪 model_test/           # 🆕 모델 테스트 및 분석
+│   └── model_flow_test.py  # 전체 모델 플로우 테스트
+│
 ├── 🤖 agents/               # 미래 MCP/Agent2Agent 확장
 ├── 📁 media/                # 미래 이력서/화상면접 파일 저장
 ├── 📚 docs/                 # 프로젝트 문서
@@ -144,13 +169,34 @@ yoseop_1/
 └── requirements.txt        # Python 의존성
 ```
 
+## 🎛️ 아키텍처 패턴
+
+### 계층화 아키텍처
+```
+Frontend Layer (React)
+    ↓ HTTP Request
+Backend API (FastAPI)
+    ↓ Business Logic
+Service Layer 
+    ↓ AI Processing
+LLM Modules (OpenAI)
+    ↓ Data Storage
+Database (Supabase)
+```
+
+### 모듈형 설계 원칙
+- **단일 책임 원칙**: 각 모듈은 하나의 핵심 기능만 담당
+- **느슨한 결합**: 모듈 간 의존성 최소화
+- **높은 응집도**: 관련 기능들을 같은 모듈에 배치
+- **의존성 주입**: 모듈 간 느슨한 결합
+
 ## 📦 설치 및 실행
 
 ### 1. 환경 설정
 ```bash
 # 저장소 클론
 git clone <repository-url>
-cd final_Q_test
+cd yoseop_1
 
 # Python 가상환경 생성 (권장)
 python -m venv venv
@@ -263,6 +309,7 @@ print('네이버 인재상:', loader.get_company_data('naver')['talent_profile']
    - 각각 독립적인 세션에서 질문 받고 답변
    - 모든 데이터 실시간 Supabase 저장
    - 실시간 타임라인에서 전체 진행 상황 확인
+   - **질문 생성 방식 표시**: 각 질문이 DB 참조인지 LLM 생성인지 표시
 
 4. **최종 결과**
    - 사용자 vs 춘식이 성과 비교
@@ -308,9 +355,42 @@ print('네이버 인재상:', loader.get_company_data('naver')['talent_profile']
 - **당근마켓**: 지역사회 가치, 사용자 신뢰, 따뜻한 기술 철학 중심
 - **라인**: 글로벌 서비스 경험, 품질 기준, 국제적 협업 중심
 
+### 🧪 질문 생성 방식 분석 (v3.0 신규)
+
+#### 🔍 질문 타입별 분류
+시스템은 다음과 같이 질문 생성 방식을 구분하여 표시합니다:
+
+- **💾 DB 참조 질문**: 미리 저장된 템플릿을 사용한 질문
+  - `db_template`: 기본 DB 템플릿
+  - `db_template_enhanced`: LLM으로 개선된 DB 템플릿
+  - `db_template_for_ai`: AI 지원자 전용 DB 템플릿
+
+- **🤖 LLM 생성 질문**: 실시간으로 생성된 질문
+  - `llm_generated`: 완전히 새로 생성된 질문
+  - `llm_generated_for_ai`: AI 지원자 전용 생성 질문
+  - `llm_follow_up`: 이전 답변 기반 꼬리질문
+  - `ai_focused_llm`: AI 답변에 집중한 꼬리질문
+
+- **📌 고정 질문**: 시스템에서 정의된 고정 질문 (자기소개, 지원동기 등)
+
+- **⚠️ 폴백 질문**: 생성 실패 시 사용되는 기본 질문
+
 ## 🔧 개발자 가이드
 
 ### 🧪 테스트 실행
+
+#### 모델 플로우 테스트
+```bash
+# 전체 모델 플로우 테스트 (권장)
+cd model_test
+python model_flow_test.py
+
+# 선택 옵션:
+# 1. 단일 테스트 (상세) - 질문 생성 방식 표시 포함
+# 2. 배치 테스트 (전체 시나리오)
+```
+
+#### 기본 테스트
 ```bash
 # 데이터베이스 연결 테스트
 python scripts/test_simple_migration.py
@@ -388,7 +468,7 @@ curl -X POST http://127.0.0.1:8000/api/migration/run \
   -d '{"task": "all", "dry_run": false}'
 ```
 
-### 📊 API 엔드포인트 (v2.1)
+### 📊 API 엔드포인트
 
 #### 핵심 면접 API
 | 엔드포인트 | 메서드 | 설명 |
@@ -401,7 +481,7 @@ curl -X POST http://127.0.0.1:8000/api/migration/run \
 | `/api/interview/comparison/user-turn` | POST | 사용자 턴 제출 |
 | `/api/interview/comparison/ai-turn` | POST | AI 턴 처리 |
 
-#### 새로운 데이터베이스 API (v2.1)
+#### 데이터베이스 API
 | 엔드포인트 | 메서드 | 설명 |
 |------------|--------|------|
 | `/api/database/companies` | GET | 회사 목록 조회 |
@@ -411,7 +491,7 @@ curl -X POST http://127.0.0.1:8000/api/migration/run \
 | `/api/migration/run` | POST | 마이그레이션 실행 |
 | `/api/migration/validate` | GET | 데이터 검증 |
 
-## 🗄️ 데이터베이스 현황 (v2.1)
+## 🗄️ 데이터베이스 현황
 
 ### ✅ 마이그레이션 완료
 - **Company 테이블**: 7개 회사 데이터 (네이버, 카카오, 라인, 쿠팡, 배달의민족, 당근마켓, 토스)
@@ -464,30 +544,42 @@ position_id, total_feedback, date
 - **그룹 면접**: 여러 AI 후보자들과의 동시 면접
 - **구현 위치**: `agents/protocols/`, `agents/coordination/`
 
+### 🎯 AI 모델 고도화
+- **질문 생성 방식 최적화**: DB 템플릿과 LLM 생성의 최적 조합
+- **답변 품질 평가**: 더 정교한 답변 품질 분석 시스템
+- **실시간 피드백**: 면접 진행 중 실시간 개선점 제안
+
 ## 🚨 주의사항
 
 ### 🔐 보안
 - OpenAI API 키를 `.env` 파일에서 관리 (Git에 커밋하지 않음)
 - Supabase 인증 키 보안 관리
 - Row Level Security (RLS) 적용
+- 입력 검증: Pydantic으로 모든 사용자 입력 검증
 
 ### 💰 비용 관리
 - GPT-4o-mini 사용으로 비용 최적화
 - Supabase 무료 티어 한도 모니터링
 - 토큰 사용량 모니터링 권장
+- 배치 테스트 시 비용 주의
 
 ### 🎯 성능
 - FastAPI의 비동기 처리로 동시 사용자 지원 향상
 - Supabase 실시간 구독으로 데이터 동기화 최적화
 - React의 가상 DOM으로 UI 성능 최적화
+- CompanyDataLoader 싱글톤으로 메모리 효율성 향상
+
+### 🧪 테스트 고려사항
+- 모델 플로우 테스트는 실제 OpenAI API를 호출하므로 비용 발생
+- 배치 테스트는 여러 시나리오를 연속 실행하므로 시간 소요
+- 테스트 결과는 Excel 파일로 저장되어 분석 가능
 
 ## 📚 추가 문서
 
 - [데이터베이스 마이그레이션 가이드](docs/DATABASE_MIGRATION.md) - Supabase 통합 상세 내용
 - [API 문서](docs/API_REFERENCE.md) - 상세한 API 스펙  
 - [개발자 가이드](docs/DEVELOPER_GUIDE.md) - 개발 환경 설정 및 기여 방법
-
----
+- [모델 테스트 가이드](docs/MODEL_TEST_GUIDE.md) - AI 모델 테스트 및 분석 방법
 
 ---
 
@@ -501,16 +593,24 @@ position_id, total_feedback, date
 - **🆕 회사 데이터 통합**: 7개 회사의 상세 정보를 완전히 활용하는 통합 시스템
 - **🆕 CompanyDataLoader**: 싱글톤 패턴 기반 효율적 회사 데이터 관리
 - **🆕 개인화 강화**: 회사별 맞춤형 프롬프트 및 질문 생성 시스템
+- **🆕 질문 분석 시스템**: DB 참조 vs LLM 생성 구분 및 분석 기능
 
 ### ⚡ 성능 및 확장성
 - **메모리 최적화**: 중복 코드 제거 및 효율적인 모듈 로딩
 - **응답 속도**: 서비스 계층 도입으로 비즈니스 로직 실행 속도 향상
 - **확장성**: 새로운 기능 추가 시 적절한 모듈에 배치 가능한 구조
+- **테스트 커버리지**: 전체 모델 플로우 테스트로 시스템 안정성 확보
 
 ### 🔧 개발자 경험
 - **디버깅 개선**: 자동 Import 오류 감지 및 수정
 - **코드 가독성**: 각 모듈의 역할과 책임이 명확히 정의
 - **유지보수성**: 기능별 모듈화로 버그 수정 및 기능 개선 용이
+- **테스트 도구**: 모델 플로우 테스트로 전체 시스템 동작 검증 가능
+
+### 🎯 사용자 경험
+- **질문 투명성**: 각 질문의 생성 방식을 사용자에게 명확히 표시
+- **개인화 강화**: 회사별 특화된 면접 경험 제공
+- **시스템 신뢰성**: 안정적인 모듈 구조로 면접 중단 위험 최소화
 
 ---
 
@@ -518,4 +618,5 @@ position_id, total_feedback, date
 **버전**: 3.0.0 (모듈형 아키텍처 리팩터링 완료)  
 **최종 업데이트**: 2025-01-23  
 **아키텍처**: 모듈형 계층화 구조  
-**데이터베이스**: Supabase (PostgreSQL)
+**데이터베이스**: Supabase (PostgreSQL)  
+**AI 모델**: OpenAI GPT-4o-mini (메인), GPT-4 & GPT-3.5 (서브)

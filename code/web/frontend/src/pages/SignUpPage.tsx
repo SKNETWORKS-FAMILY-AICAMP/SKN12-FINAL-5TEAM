@@ -22,7 +22,7 @@ const validatePassword = (password: string): PasswordValidation => {
     length: password.length >= 8,
     uppercase: /[A-Z]/.test(password),
     lowercase: /[a-z]/.test(password),
-    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(password)
   };
 
   const errors: string[] = [];
@@ -100,7 +100,15 @@ const SignUpPage: React.FC = () => {
       }
     } catch (error: any) {
       const errorMessage = handleApiError(error);
-      setEmailError(errorMessage);
+      
+      // 이메일 중복 에러 특별 처리
+      if (errorMessage.includes('이미 등록된 이메일') || errorMessage.includes('이미 사용중인 이메일')) {
+        alert('🚫 이미 사용중인 이메일입니다.\n\n다른 이메일을 사용하거나 로그인 페이지에서 로그인해주세요.');
+        setEmailError('⚠️ 이미 사용중인 이메일입니다. 다른 이메일을 사용해주세요.');
+      } else {
+        setEmailError(errorMessage);
+      }
+      
       console.error('OTP 발송 실패:', error);
     } finally {
       setIsLoading(false);
@@ -126,8 +134,8 @@ const SignUpPage: React.FC = () => {
         setVerifyMessage('인증이 완료되었습니다!');
       }
     } catch (error: any) {
-      const errorMessage = handleApiError(error);
-      setVerifyMessage(errorMessage);
+      // 인증번호 실패 시 항상 같은 메시지로 표시
+      setVerifyMessage('인증번호가 일치하지 않습니다. 다시 확인해주세요.');
       console.error('OTP 검증 실패:', error);
     } finally {
       setIsLoading(false);
@@ -177,13 +185,30 @@ const SignUpPage: React.FC = () => {
         }
       } else {
         // 에러 처리
-        setError(result.error || '회원가입에 실패했습니다.');
+        const errorMsg = result.error || '회원가입에 실패했습니다.';
+        
+        // 이메일 중복 에러 특별 처리
+        if (errorMsg.includes('이미 등록된 사용자') || errorMsg.includes('이미 사용중인 이메일')) {
+          // 팝업 알림과 화면 경고 둘 다 표시
+          alert('🚫 이미 사용중인 이메일입니다.\n\n다른 이메일을 사용하거나 로그인 페이지에서 로그인해주세요.');
+          setError('⚠️ 이미 사용중인 이메일입니다. 다른 이메일을 사용해주세요.');
+        } else {
+          setError(errorMsg);
+        }
       }
       
     } catch (error: any) {
       // 예상치 못한 에러 처리
       const errorMessage = handleApiError(error);
-      setError(errorMessage);
+      
+      // 이메일 중복 에러 특별 처리
+      if (errorMessage.includes('이미 등록된 사용자') || errorMessage.includes('이미 사용중인 이메일')) {
+        alert('🚫 이미 사용중인 이메일입니다.\n\n다른 이메일을 사용하거나 로그인 페이지에서 로그인해주세요.');
+        setError('⚠️ 이미 사용중인 이메일입니다. 다른 이메일을 사용해주세요.');
+      } else {
+        setError(errorMessage);
+      }
+      
       console.error('회원가입 실패:', error);
     } finally {
       setIsLoading(false);
@@ -222,7 +247,15 @@ const SignUpPage: React.FC = () => {
                   {isLoading && !codeVerified ? <LoadingSpinner size="sm" color="white" /> : '인증받기'}
                 </button>
               </div>
-              {emailError && <div className="mb-2 text-center text-red-600 font-semibold text-sm">{emailError}</div>}
+              {emailError && (
+                <div className={`mb-2 text-center font-semibold text-sm p-3 rounded-lg border ${
+                  emailError.includes('이미 사용중인 이메일') 
+                    ? 'text-red-700 bg-red-50 border-red-200' 
+                    : 'text-red-600'
+                }`}>
+                  {emailError}
+                </div>
+              )}
               {infoMessage && <div className="mb-2 text-center text-blue-600 font-semibold text-sm">{infoMessage}</div>}
 
               {/* 인증번호 + 인증확인 */}
@@ -324,7 +357,15 @@ const SignUpPage: React.FC = () => {
                 required
                 disabled={!codeVerified}
               />
-              {error && <div className="mb-2 text-center text-red-600 font-semibold text-sm">{error}</div>}
+              {error && (
+                <div className={`mb-2 text-center font-semibold text-sm p-3 rounded-lg border ${
+                  error.includes('이미 사용중인 이메일') 
+                    ? 'text-red-700 bg-red-50 border-red-200' 
+                    : 'text-red-600'
+                }`}>
+                  {error}
+                </div>
+              )}
               <button
                 type="submit"
                 disabled={!codeVerified || isLoading || !passwordValidation.isValid || formData.password !== formData.passwordConfirm || !formData.name.trim()}

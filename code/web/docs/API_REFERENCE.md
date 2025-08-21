@@ -15,7 +15,7 @@ AI 면접 시스템의 모든 API 엔드포인트에 대한 상세 문서입니�
 
 ### Base URL
 ```
-http://localhost:8888
+http://localhost:8000
 ```
 
 ### Content-Type
@@ -568,8 +568,8 @@ AI 경쟁 면접의 사용자 vs AI 비교 평가를 생성합니다.
 ```json
 {
   "status": "ok",
-  "message": "Flask 앱이 정상적으로 작동 중입니다",
-  "port": 8888,
+  "message": "FastAPI 앱이 정상적으로 작동 중입니다",
+  "port": 8000,
   "debug": true,
   "timestamp": "2025-01-16T10:30:00Z"
 }
@@ -585,10 +585,10 @@ AI 경쟁 면접의 사용자 vs AI 비교 평가를 생성합니다.
 ```json
 {
   "status": "success",
-  "message": "Flask 서버가 정상 작동합니다!",
+  "message": "FastAPI 서버가 정상 작동합니다!",
   "environment": "development",
-  "python_version": "3.9.7",
-  "flask_version": "3.0.3"
+  "python_version": "3.10+",
+  "fastapi_version": "0.104+"
 }
 ```
 
@@ -637,7 +637,7 @@ import requests
 import json
 
 # 서버 URL
-BASE_URL = "http://localhost:8888"
+BASE_URL = "http://localhost:8000"
 
 # 문서 분석
 analyze_data = {

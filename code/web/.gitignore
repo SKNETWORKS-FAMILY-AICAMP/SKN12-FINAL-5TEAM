@@ -58,7 +58,7 @@ env/
 # IDEs
 .vscode/
 .idea/
-.claude/
+**/.claude/
 *.swp
 *.swo
 *~
@@ -146,3 +146,24 @@ dmypy.json*.pyc
 
 *.pyc
 __pycache__/
+
+.serena
+.claude/settings.local.json
+.claude/settings.json
+
+**/automl/
+**/.claude
+
+
+*.jpg
+*.jpeg
+*.pkl
+*.joblib
+*/automl/
+**/package-lock.json
+**/node_modules/
+.DS_Store
+.vscode/
+EOF
+
+**/model_test/

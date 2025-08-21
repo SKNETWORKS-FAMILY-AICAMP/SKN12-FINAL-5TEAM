@@ -17,6 +17,7 @@ auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
 # 보안 스키마
 security = HTTPBearer()
 
+
 # OTP 관련 스키마
 class SendOTPRequest(BaseModel):
     email: str
@@ -137,3 +138,23 @@ async def verify_otp(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OTP 검증 중 오류가 발생했습니다: {str(e)}")
+
+# OAuth 완료 처리 엔드포인트
+@auth_router.post("/oauth/complete", response_model=AuthResponse)
+async def oauth_complete(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """
+    OAuth 로그인 완료 후 사용자 정보 동기화
+    Supabase에서 받은 토큰으로 사용자 정보를 확인하고 User 테이블에 동기화
+    """
+    try:
+        token = credentials.credentials
+        result = await auth_service.sync_oauth_user(token)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OAuth 완료 처리 중 오류가 발생했습니다: {str(e)}")
+

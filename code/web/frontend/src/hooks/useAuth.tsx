@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi, tokenManager, UserProfile, handleApiError } from '../services/api';
+import { supabase } from '../lib/supabase';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -39,6 +40,31 @@ export const useAuth = () => {
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {
     checkAuthStatus();
+    
+    // Supabase 세션 상태 변화 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 Supabase Auth 상태 변화:', event, session?.user?.email);
+        
+        if (event === 'SIGNED_IN' && session) {
+          // OAuth 로그인 완료 시 백엔드 동기화는 OAuthCallbackPage에서 처리
+          console.log('✅ Supabase 로그인 세션 감지');
+        } else if (event === 'SIGNED_OUT') {
+          // 로그아웃 시 로컬 상태 정리
+          tokenManager.clearAuth();
+          setAuthState({
+            isAuthenticated: false,
+            user: null,
+            isLoading: false
+          });
+        }
+      }
+    );
+
+    // 정리 함수
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // 로그인 함수 (리다이렉트 지원)
@@ -182,6 +208,7 @@ export const useAuth = () => {
       });
     }
   };
+
 
   return {
     ...authState,

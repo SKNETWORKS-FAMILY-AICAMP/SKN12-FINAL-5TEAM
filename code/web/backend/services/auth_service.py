@@ -226,11 +226,15 @@ class AuthService:
         """현재 인증된 사용자 정보 반환 (Depends로 사용)"""
         try:
             token = credentials.credentials
+            print(f"🔍 Received token: {token[:50]}...") # 토큰 앞부분만 로깅
 
             # Supabase JWT 토큰 검증
+            print("🔍 Calling supabase.auth.get_user...")
             user_response = self.supabase.auth.get_user(token)
+            print(f"🔍 Supabase response: {user_response}")
             
             if user_response.user is None:
+                print("❌ user_response.user is None")
                 raise HTTPException(status_code=401, detail="인증이 필요합니다.")
             
             # User 테이블에서 auth_id로 상세 정보 조회
@@ -250,11 +254,18 @@ class AuthService:
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=401, detail="사용자 인증에 실패했습니다.")
+            print(f"❌ Auth error: {str(e)}")
+            print(f"❌ Auth error type: {type(e)}")
+            raise HTTPException(status_code=401, detail=f"사용자 인증에 실패했습니다: {str(e)}")
     
     async def send_email_otp(self, email: str) -> Dict[str, Any]:
         """회원가입용 이메일 OTP 코드 발송"""
         try:
+            # 먼저 이메일 중복 확인
+            existing_users = self.supabase.from_("User").select("*").eq("email", email).execute()
+            if existing_users.data:
+                raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다.")
+            
             import uuid
             import string
             import random
@@ -298,7 +309,11 @@ class AuthService:
             
             return {"success": True, "message": "인증번호가 이메일로 발송되었습니다."}
             
+        except HTTPException:
+            # HTTPException은 그대로 재발생
+            raise
         except Exception as e:
+            print(f"❌ OTP 발송 중 오류: {str(e)}")
             raise HTTPException(status_code=500, detail=f"OTP 발송 실패: {str(e)}")
     
     async def verify_email_otp(self, email: str, code: str) -> Dict[str, Any]:
@@ -321,6 +336,102 @@ class AuthService:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"OTP 검증 실패: {str(e)}")
+    
+    
+    
+    async def sync_oauth_user(self, access_token: str) -> AuthResponse:
+        """OAuth 로그인 후 사용자 정보 동기화 - 기존 사용자 확인/업데이트 로직 재사용"""
+        try:
+            print(f"🔄 OAuth 사용자 동기화 시작")
+            
+            # 1. Supabase 토큰으로 사용자 정보 조회
+            user_response = self.supabase.auth.get_user(access_token)
+            
+            if not user_response.user:
+                raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+            
+            oauth_user = user_response.user
+            print(f"✅ OAuth 사용자 정보 확인: {oauth_user.email}")
+            
+            # 2. 기존 사용자 확인 (이메일로 조회) - 기존 로직과 동일
+            existing_user = self.supabase.from_("User").select("*").eq("email", oauth_user.email).execute()
+            
+            if existing_user.data:  # 기존 사용자 발견
+                user_info = existing_user.data[0]
+                print(f"🔄 기존 사용자 발견: {user_info['email']}")
+                
+                # OAuth 연동 정보가 없으면 추가 (기존 로직과 동일)
+                if not user_info.get("oauth_provider"):
+                    provider = self._detect_oauth_provider(oauth_user)
+                    print(f"🔄 기존 사용자에 {provider} 연동 추가")
+                    self.supabase.from_("User").update({
+                        "oauth_provider": provider,
+                        "auth_id": oauth_user.id
+                    }).eq("user_id", user_info["user_id"]).execute()
+                
+                user_response_obj = UserResponse(
+                    user_id=user_info["user_id"],
+                    name=user_info["name"],
+                    email=user_info["email"]
+                )
+            else:
+                # 새로운 OAuth 사용자 생성 (기존 로직과 동일)
+                print("🆕 새 OAuth 사용자 생성 시작")
+                provider = self._detect_oauth_provider(oauth_user)
+                user_name = (
+                    oauth_user.user_metadata.get("full_name") or 
+                    oauth_user.user_metadata.get("name") or 
+                    f"{provider.title()} 사용자"
+                )
+                
+                new_user_data = {
+                    "auth_id": oauth_user.id,
+                    "name": user_name,
+                    "email": oauth_user.email,
+                    "pw": "",  # OAuth 사용자는 빈 문자열 (NOT NULL 제약조건)
+                    "oauth_provider": provider
+                }
+                print(f"🔍 새 사용자 데이터: {new_user_data}")
+                
+                user_insert = self.supabase.from_("User").insert(new_user_data).execute()
+                
+                if not user_insert.data:
+                    raise HTTPException(status_code=500, detail="사용자 정보 저장에 실패했습니다.")
+                
+                user_info = user_insert.data[0]
+                print(f"✅ 새 사용자 생성 완료: {user_info}")
+                user_response_obj = UserResponse(
+                    user_id=user_info["user_id"],
+                    name=user_info["name"],
+                    email=user_info["email"]
+                )
+            
+            # 3. 응답 반환 (Supabase 토큰 그대로 사용)
+            return AuthResponse(
+                access_token=access_token,
+                refresh_token=None,  # 프론트엔드에서 Supabase 세션으로 관리
+                token_type="bearer",
+                user=user_response_obj
+            )
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"❌ OAuth 사용자 동기화 실패: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"OAuth 사용자 동기화 실패: {str(e)}")
+    
+    def _detect_oauth_provider(self, oauth_user) -> str:
+        """OAuth 사용자 정보에서 제공자 감지 (단순화)"""
+        # Supabase app_metadata에서 provider 정보 확인
+        if hasattr(oauth_user, 'app_metadata') and oauth_user.app_metadata:
+            # Supabase는 app_metadata에 provider 정보를 포함
+            provider_info = oauth_user.app_metadata.get('provider')
+            if provider_info:
+                return provider_info.lower()
+        
+        # 기본값 (fallback)
+        return "google"
+    
 
 # 전역 서비스 인스턴스
 auth_service = AuthService()

@@ -145,7 +145,7 @@ export const useTextCompetitionInit = ({
 
   useEffect(() => {
     initialize();
-  }, []); // 의존성 배열을 비워서 최초 1회만 실행
+  }, [initialize]); // initialize 함수를 의존성에 추가
 
   return {
     ...state,

@@ -1,51 +1,53 @@
-# 🚀 AI 면접 시스템 Full-Stack Architecture 로드맵
+# 🚀 AI 면접 시스템 현재 아키텍처 (v3.0)
 
-## 📋 전체 아키텍처 구성
+## 📋 현재 구현된 아키텍처 구성
 
-**기술 스택:**
-- **Frontend**: React 18 + TypeScript + Tailwind CSS
-- **Backend**: FastAPI + Python 3.11
-- **Database**: Supabase (PostgreSQL + Auth + Storage)
-- **Containerization**: Docker + Docker Compose
-- **Deployment**: AWS (ECS Fargate + S3 + CloudFront)
-- **CI/CD**: GitHub Actions
+**기술 스택 (실제 구현됨):**
+- **Frontend**: React 19.1.0 + TypeScript + Tailwind CSS
+- **Backend**: FastAPI 0.104+ + Python 3.10+ + Uvicorn
+- **AI/ML**: OpenAI GPT-4o-mini + AutoML (AutoGluon)
+- **Database**: Supabase (PostgreSQL + Real-time subscriptions)
+- **Document Processing**: PyPDF2, python-docx, sentence-transformers
+- **Infrastructure**: CORS middleware, JWT authentication
 
-## 🏗️ 프로젝트 구조
+## 🏗️ 현재 프로젝트 구조 (실제 구현됨)
 
 ```
-ai-interview-system/
-├── frontend/                 # React 프론트엔드
+yoseop_1/                     # v3.0 모듈형 아키텍처
+├── 🎨 frontend/              # React 19.1.0 + TypeScript
 │   ├── src/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── store/
-│   │   ├── services/
-│   │   └── types/
-│   ├── public/
-│   ├── package.json
-│   └── Dockerfile
-├── backend/                  # FastAPI 백엔드
-│   ├── app/
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── models/
-│   │   ├── services/
-│   │   └── main.py
-│   ├── requirements.txt
-│   └── Dockerfile
-├── infrastructure/           # IaC (Infrastructure as Code)
-│   ├── terraform/
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   └── docker-compose.yml
-├── scripts/                  # 배포 스크립트
-│   ├── build.sh
-│   ├── deploy.sh
-│   └── setup.sh
-└── .github/
-    └── workflows/
-        └── ci-cd.yml
+│   │   ├── components/       # React 컴포넌트
+│   │   │   ├── auth/         # 인증 컴포넌트
+│   │   │   ├── common/       # 공통 컴포넌트
+│   │   │   ├── interview/    # 면접 관련 컴포넌트
+│   │   │   └── voice/        # 음성 관련 컴포넌트
+│   │   ├── pages/            # 페이지 컴포넌트
+│   │   ├── hooks/            # Custom React hooks
+│   │   ├── services/         # API 서비스
+│   │   └── contexts/         # React Context
+│   ├── public/img/           # 기업 로고 이미지
+│   └── package.json          # Node.js 의존성
+├── 🚀 backend/               # FastAPI 서버
+│   ├── main.py               # FastAPI 앱 엔트리포인트
+│   ├── routers/              # RESTful API 라우터
+│   │   ├── interview.py      # 면접 API
+│   │   ├── auth.py           # 인증 API
+│   │   ├── company.py        # 회사 관리 API
+│   │   └── user.py           # 사용자 API
+│   ├── services/             # 비즈니스 로직 계층
+│   │   ├── interview_service.py # 면접 서비스
+│   │   └── supabase_client.py   # DB 클라이언트
+│   └── schemas/              # Pydantic 데이터 모델
+├── 🧠 llm/                   # AI/ML 모듈 (핵심!)
+│   ├── session/              # 세션 관리
+│   ├── interviewer/          # 면접관 (질문 생성)
+│   ├── candidate/            # AI 지원자 (답변 생성)
+│   ├── feedback/             # 평가 시스템 (ML+LLM)
+│   └── shared/               # 공용 유틸리티
+├── 📊 scripts/               # 실행 스크립트
+│   └── start_backend.py      # 백엔드 시작 스크립트
+├── 📚 docs/                  # 문서
+└── requirements.txt          # Python 의존성
 ```
 
 ## 🎯 마이그레이션 로드맵

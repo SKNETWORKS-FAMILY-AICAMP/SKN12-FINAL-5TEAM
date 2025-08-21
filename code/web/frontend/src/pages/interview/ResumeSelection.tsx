@@ -80,6 +80,7 @@ const ResumeSelection: React.FC = () => {
       // Context에 선택된 이력서 정보 저장 (기존 인터페이스에 맞게 변환)
       const resumeForContext = {
         id: selectedResumeData.user_resume_id.toString(),
+        user_resume_id: selectedResumeData.user_resume_id, // ✅ 원본 numeric ID 보존
         name: selectedResumeData.name,
         email: selectedResumeData.email,
         phone: selectedResumeData.phone,

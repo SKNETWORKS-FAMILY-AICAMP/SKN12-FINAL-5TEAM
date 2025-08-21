@@ -1,20 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/common/Header';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import VideoTestModal from '../components/test/VideoTestModal';
 import { useInterviewStats } from '../hooks/useInterviewHistory';
+import { interviewApi } from '../services/api';
 
 const MainPage: React.FC = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [globalStats, setGlobalStats] = useState({
+    total_interviews: 0,
+    global_average_score: 0
+  });
   
-  // Context에서 통계 데이터 가져오기
+  // Context에서 개인 통계 데이터 가져오기
   const { totalInterviews, averageScore, lastInterviewDate, isLoading: statsLoading } = useInterviewStats();
   
+  // 전체 통계 로드
+  useEffect(() => {
+    const loadGlobalStats = async () => {
+      try {
+        const stats = await interviewApi.getGlobalStats();
+        setGlobalStats(stats);
+      } catch (error) {
+        console.error('전체 통계 로드 실패:', error);
+      }
+    };
+    
+    loadGlobalStats();
+  }, []);
+  
   const stats = {
-    totalInterviews: totalInterviews || 1,
-    averageScore: averageScore || 87,
-    lastInterviewDate: lastInterviewDate || '2025-07-25'
+    totalInterviews: statsLoading ? 0 : (totalInterviews || 0),
+    averageScore: statsLoading ? 0 : (averageScore || 0),
+    lastInterviewDate: statsLoading ? null : (lastInterviewDate || null)
   };
 
   const handleStartInterview = () => {
@@ -32,13 +53,13 @@ const MainPage: React.FC = () => {
       color: "from-blue-500 to-cyan-500"
     },
     {
-      icon: "🎯",
+      icon: "🏢",
       title: "3명 면접관 시뮬레이션",
       description: "인사, 실무, 협업 담당자 역할의 3명 면접관이 다각도로 평가합니다.",
       color: "from-purple-500 to-pink-500"
     },
     {
-      icon: "📈",
+      icon: "📋",
       title: "상세한 분석 리포트",
       description: "면접 후 상세한 분석과 개선 방안을 제공하는 리포트를 받아보세요.",
       color: "from-orange-500 to-red-500"
@@ -71,43 +92,46 @@ const MainPage: React.FC = () => {
           </h1>
           
           <p className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto">
-            개인화된 AI 면접관과 함께 실전같은 면접을 연습하고, 
+            개인화된 AI 면접관과 함께 실전같은 면접을 연습하고,<br />
             상세한 피드백으로 면접 실력을 한 단계 업그레이드하세요.
           </p>
           
-          <div className="flex justify-center">
-            <button
-              onClick={handleStartInterview}
-              disabled={isLoading}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-bold hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <LoadingSpinner size="sm" color="white" />
-                  준비 중...
+                          <div className="flex justify-center">
+                  <button
+                    onClick={handleStartInterview}
+                    disabled={isLoading}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-bold hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <LoadingSpinner size="sm" color="white" />
+                        준비 중...
+                      </div>
+                    ) : (
+                      "면접 시작하기"
+                    )}
+                  </button>
                 </div>
-              ) : (
-                "면접 시작하기"
-              )}
-            </button>
-          </div>
         </div>
 
         {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 text-center">
-            <div className="text-3xl font-bold text-blue-600 mb-2">{stats.totalInterviews}</div>
+            <div className="text-3xl font-bold text-blue-600 mb-2">{globalStats.total_interviews}</div>
             <div className="text-slate-600">총 면접 횟수</div>
+            <div className="text-xs text-slate-400 mt-1">전체 사용자</div>
           </div>
           
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 text-center">
-            <div className="text-3xl font-bold text-green-600 mb-2">{stats.averageScore}</div>
+            <div className="text-3xl font-bold text-green-600 mb-2">{globalStats.global_average_score}</div>
             <div className="text-slate-600">평균 점수</div>
+            <div className="text-xs text-slate-400 mt-1">전체 사용자</div>
           </div>
           
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 text-center">
-            <div className="text-3xl font-bold text-purple-600 mb-2">1</div>
-            <div className="text-slate-600">면접 기록</div>
+            <div className="text-3xl font-bold text-purple-600 mb-2">{stats.totalInterviews}</div>
+            <div className="text-slate-600">나의 면접 횟수</div>
+            <div className="text-xs text-slate-400 mt-1">개인 기록</div>
           </div>
         </div>
 
@@ -174,7 +198,7 @@ const MainPage: React.FC = () => {
           </h2>
           
           <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
-            5분만 투자하면 당신만의 맞춤형 면접 연습을 시작할 수 있습니다. 
+            5분만 투자하면 당신만의 맞춤형 면접 연습을 시작할 수 있습니다.<br />
             AI가 실시간으로 분석하고 피드백을 제공합니다.
           </p>
           
@@ -194,6 +218,21 @@ const MainPage: React.FC = () => {
           </button>
         </div>
       </main>
+
+      {/* S3 비디오 테스트 버튼 (개발자 도구) */}
+      <button
+        onClick={() => setIsTestModalOpen(true)}
+        className="fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 z-40"
+        title="S3 비디오 테스트"
+      >
+        🎬
+      </button>
+
+      {/* 테스트 모달 */}
+      <VideoTestModal
+        isOpen={isTestModalOpen}
+        onClose={() => setIsTestModalOpen(false)}
+      />
     </div>
   );
 };

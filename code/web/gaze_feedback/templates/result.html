@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>면접 결과</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            max-width: 600px;
+            width: 95%;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.2em; opacity: 0.9; }
+        .content {
+            padding: 40px;
+            text-align: center;
+        }
+        .score-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 3px solid #e9ecef;
+        }
+        .score-title {
+            font-size: 1.3em;
+            color: #495057;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .score-value {
+            font-size: 4em;
+            font-weight: bold;
+            margin: 20px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .score-description {
+            font-size: 1.1em;
+            color: #6c757d;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .score-interpretation {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .excellent { background: #d4edda; color: #155724; }
+        .good { background: #d1ecf1; color: #0c5460; }
+        .average { background: #fff3cd; color: #856404; }
+        .poor { background: #f8d7da; color: #721c24; }
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-2px);
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 1s ease;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📊 면접 결과</h1>
+        <p>시선 안정성 분석 결과</p>
+    </div>
+
+    <div class="content">
+        <div class="score-container">
+            <div class="score-title">시선 안정성 점수</div>
+            <div class="score-value">{{ jitter_score }}</div>
+            <div class="score-description">
+                시선의 흔들림 정도를 측정하여 0-100점으로 평가했습니다.<br>
+                높은 점수일수록 시선이 안정적임을 의미합니다.`
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{jitter_score}}%"></div>
+            </div>
+            
+            {% if jitter_score >= 80 %}
+                <div class="score-interpretation excellent">
+                    🌟 우수함: 매우 안정적인 시선을 유지했습니다!
+                </div>
+            {% elif jitter_score >= 60 %}
+                <div class="score-interpretation good">
+                    👍 양호함: 면접 중 시선 처리가 양호합니다.
+                </div>
+            {% elif jitter_score >= 40 %}
+                <div class="score-interpretation average">
+                    ⚠️ 보통: 시선 안정성을 더 개선하세요.
+                </div>
+            {% else %}
+                <div class="score-interpretation poor">
+                    📈 개선 필요: 시선 처리가 많이 불안합니다. 더 노력하세요.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- 시선 범위 시각화 섹션 -->
+        <div style="margin-top: 30px;">
+            <h3 style="color: #495057; margin-bottom: 15px;">👁️ 시선 범위 분석</h3>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                <p style="color: #6c757d; margin-bottom: 15px; text-align: center;">
+                    파란색 영역: 환경설정에서 측정된 시선 가능 범위<br>
+                    빨간색 점: 면접 중 실제 시선 위치 (20개 샘플)
+                </p>
+                <canvas id="gazeVisualization" width="500" height="300" style="border: 2px solid #dee2e6; border-radius: 10px; background: white; display: block; margin: 0 auto;"></canvas>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <h3 style="color: #495057; margin-bottom: 15px;">💡 개선 팁</h3>
+            <div style="text-align: left; background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                <ul style="color: #6c757d; line-height: 1.8;">
+                    <li>면접 중 한 점을 집중해서 바라보세요</li>
+                    <li>긴장하지 말고 자연스럽게 시선을 유지하세요</li>
+                    <li>카메라 렌즈를 직접 바라보는 연습을 하세요</li>
+                    <li>규칙적인 시선 집중 훈련을 해보세요</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <a href="/" class="btn btn-primary">🔄 다시 측정하기</a>
+            <button class="btn btn-secondary" onclick="window.close()">✅ 완료</button>
+        </div>
+    </div>
+</div>
+
+<!-- 데이터 전달을 위한 숨겨진 스크립트 태그 -->
+<script type="application/json" id="calibrationData">{{ calibration_points | tojson | safe }}</script>
+<script type="application/json" id="interviewData">{{ interview_points | tojson | safe }}</script>
+
+<script>
+// 페이지 로드 시 점수 애니메이션 및 시선 시각화
+document.addEventListener('DOMContentLoaded', function() {
+    // 점수 애니메이션
+    const scoreValue = document.querySelector('.score-value');
+    const targetScore = {{ jitter_score }};
+    let currentScore = 0;
+    
+    const animation = setInterval(() => {
+        if (currentScore < targetScore) {
+            currentScore += Math.ceil((targetScore - currentScore) / 10);
+            scoreValue.textContent = currentScore;
+        } else {
+            scoreValue.textContent = targetScore;
+            clearInterval(animation);
+        }
+    }, 50);
+    
+    // 시선 범위 시각화
+    const canvas = document.getElementById('gazeVisualization');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        
+        // 데이터 가져오기
+        let calibrationPoints = [];
+        let interviewPoints = [];
+        
+        try {
+            const calibrationData = document.getElementById('calibrationData');
+            const interviewData = document.getElementById('interviewData');
+            
+            if (calibrationData && calibrationData.textContent) {
+                calibrationPoints = JSON.parse(calibrationData.textContent);
+            }
+            if (interviewData && interviewData.textContent) {
+                interviewPoints = JSON.parse(interviewData.textContent);
+            }
+        } catch (e) {
+            console.log('데이터 파싱 오류:', e);
+        }
+        
+        // Canvas 크기
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+
+        // 데이터가 있는 경우에만 시각화
+        if (calibrationPoints && calibrationPoints.length >= 4) {
+            // 좌표 정규화를 위한 범위 계산 (면접포인트까지 포함)
+            const allX = calibrationPoints.map(p => p.x).concat(interviewPoints ? interviewPoints.map(p => p.x) : []);
+            const allY = calibrationPoints.map(p => p.y).concat(interviewPoints ? interviewPoints.map(p => p.y) : []);
+            // 직사각형 범위 (calibration point 4개만 사용)
+            const rectX = calibrationPoints.map(p => p.x);
+            const rectY = calibrationPoints.map(p => p.y);
+
+            const minX = Math.min(...rectX);
+            const maxX = Math.max(...rectX);
+            const minY = Math.min(...rectY);
+            const maxY = Math.max(...rectY);
+
+            // 좌표 변환 함수 (실제 좌표 -> Canvas 좌표)
+            const allCanvasX = allX.concat([minX, maxX]);
+            const allCanvasY = allY.concat([minY, maxY]);
+            const normMinX = Math.min(...allCanvasX) - 20;
+            const normMaxX = Math.max(...allCanvasX) + 20;
+            const normMinY = Math.min(...allCanvasY) - 20;
+            const normMaxY = Math.max(...allCanvasY) + 20;
+            function transformX(x) {
+                return ((x - normMinX) / (normMaxX - normMinX)) * (canvasWidth - 40) + 20;
+            }
+
+            const yOffset = canvasHeight * 0.25;
+
+            function transformY(y) {
+                return ((y - normMinY) / (normMaxY - normMinY)) * (canvasHeight - 40) + 20 + yOffset;
+            }
+
+            // 직사각형 네 꼭짓점 계산
+            const rectPoints = [
+                { x: minX, y: minY, label: '좌상단' },  // 좌상단
+                { x: maxX, y: minY, label: '우상단' },  // 우상단
+                { x: maxX, y: maxY, label: '우하단' },  // 우하단
+                { x: minX, y: maxY, label: '좌하단' }   // 좌하단
+            ];
+
+            // 직사각형 그리기 (파란색 영역)
+            ctx.beginPath();
+            ctx.moveTo(transformX(rectPoints[0].x), transformY(rectPoints[0].y));
+            for (let i = 1; i < rectPoints.length; i++) {
+                ctx.lineTo(transformX(rectPoints[i].x), transformY(rectPoints[i].y));
+            }
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(102, 126, 234, 0.3)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(102, 126, 234, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 꼭짓점에 파란 원 찍기
+            rectPoints.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(transformX(point.x), transformY(point.y), 6, 0, 2 * Math.PI);
+                ctx.fillStyle = '#667eea';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // 면접 시선 점들 그리기 (빨간색 점)
+            if (interviewPoints && interviewPoints.length > 0) {
+                interviewPoints.forEach((point, index) => {
+                    ctx.beginPath();
+                    ctx.arc(transformX(point.x), transformY(point.y), 4, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#dc3545';
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                });
+            }
+
+            // 범례 추가
+            ctx.fillStyle = '#495057';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('📍 환경설정 4포인트', 20, canvasHeight - 40);
+            ctx.fillText('🔴 면접 중 시선', 20, canvasHeight - 20);
+
+        } else {
+            // 데이터가 없는 경우 안내 메시지
+            ctx.fillStyle = '#6c757d';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('환경 설정 및 면접 데이터가 필요합니다.', canvasWidth/2, canvasHeight/2);
+        }
+    }
+});
+</script>
+</body>
+</html>

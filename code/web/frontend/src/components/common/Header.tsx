@@ -45,9 +45,11 @@ const Header: React.FC<HeaderProps> = ({
               </button>
             )}
             
-            <div className="h-8 w-8 bg-primary text-white rounded flex items-center justify-center font-bold">
-              B
-            </div>
+            <img 
+              src="/img/beta_go.png" 
+              alt="Beta-GO Interview 로고" 
+              className="h-8 w-8 rounded"
+            />
             
             <div>
               <h1 className="text-xl font-bold text-slate-900">{title}</h1>

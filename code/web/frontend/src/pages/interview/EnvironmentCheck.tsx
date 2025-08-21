@@ -4,6 +4,10 @@ import Header from '../../components/common/Header';
 import StepIndicator from '../../components/interview/StepIndicator';
 import NavigationButtons from '../../components/interview/NavigationButtons';
 import { useInterview } from '../../contexts/InterviewContext';
+import { interviewApi, CalibrationResult } from '../../services/api';
+import VideoCalibration from '../../components/test/VideoCalibration';
+import { GAZE_CONSTANTS } from '../../constants/gazeConstants';
+import { createTTS, checkSpeechSupport } from '../../utils/speechUtils';
 
 interface CheckItem {
   id: string;
@@ -21,6 +25,8 @@ const EnvironmentCheck: React.FC = () => {
   const [allChecksComplete, setAllChecksComplete] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [showGazeCalibration, setShowGazeCalibration] = useState(false);
+  const isNavigatingForward = useRef(false);
 
   const [checkItems, setCheckItems] = useState<CheckItem[]>([
     {
@@ -38,6 +44,13 @@ const EnvironmentCheck: React.FC = () => {
       icon: '📹'
     },
     {
+      id: 'speaker',
+      title: '스피커/TTS 테스트',
+      description: '음성 출력 및 면접관 질문 읽기 기능을 확인합니다.',
+      status: 'pending',
+      icon: '🔊'
+    },
+    {
       id: 'network',
       title: '네트워크 연결',
       description: '안정적인 인터넷 연결을 확인합니다.',
@@ -50,6 +63,13 @@ const EnvironmentCheck: React.FC = () => {
       description: '브라우저가 면접 시스템을 지원하는지 확인합니다.',
       status: 'pending',
       icon: '💻'
+    },
+    {
+      id: 'gaze_calibration',
+      title: '시선 캘리브레이션',
+      description: '비언어적 분석을 위한 시선 추적 캘리브레이션을 진행합니다.',
+      status: 'pending',
+      icon: '👁️'
     }
   ]);
 
@@ -78,6 +98,54 @@ const EnvironmentCheck: React.FC = () => {
         }, 1500);
       } catch (error) {
         updateCheckStatus('microphone', 'error', '마이크 권한을 허용해주세요.');
+        reject(error);
+      }
+    });
+  };
+
+  // TTS/스피커 테스트
+  const checkSpeaker = async (): Promise<void> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        updateCheckStatus('speaker', 'checking');
+        
+        // TTS 지원 여부 확인
+        const { hasTTS } = checkSpeechSupport();
+        if (!hasTTS) {
+          updateCheckStatus('speaker', 'error', 'TTS를 지원하지 않는 브라우저입니다.');
+          reject(new Error('TTS not supported'));
+          return;
+        }
+
+        console.log('🔊 TTS 테스트 시작 - 음성 권한 활성화');
+        
+        // TTS 인스턴스 생성
+        const tts = createTTS();
+        
+        // 음성 목록 확인
+        const voices = window.speechSynthesis.getVoices();
+        console.log('🎵 사용 가능한 음성 수:', voices.length);
+        console.log('🎵 한국어 음성:', voices.filter(v => v.lang.startsWith('ko')).length + '개');
+        
+        // 짧은 테스트 메시지로 TTS 권한 활성화
+        const testMessage = "면접관 음성 테스트입니다. 이 음성이 들리면 정상입니다.";
+        
+        try {
+          console.log('🎤 TTS 재생 시작...');
+          await tts.speak(testMessage);
+          console.log('✅ TTS 테스트 성공 - 음성 권한 활성화됨');
+          console.log('🎯 이제 면접에서 TTS가 정상 작동할 것입니다');
+          updateCheckStatus('speaker', 'success');
+          resolve();
+        } catch (ttsError) {
+          console.error('❌ TTS 재생 실패:', ttsError);
+          updateCheckStatus('speaker', 'error', '음성 재생에 실패했습니다. 스피커를 확인해주세요.');
+          reject(ttsError);
+        }
+        
+      } catch (error) {
+        console.error('❌ 스피커/TTS 체크 실패:', error);
+        updateCheckStatus('speaker', 'error', 'TTS 기능을 사용할 수 없습니다.');
         reject(error);
       }
     });
@@ -195,6 +263,24 @@ const EnvironmentCheck: React.FC = () => {
     });
   };
 
+  // 시선 캘리브레이션 완료 핸들러
+  const handleGazeCalibrationComplete = (sessionId: string) => {
+    console.log('🎯 시선 캘리브레이션 완료:', sessionId);
+    updateCheckStatus('gaze_calibration', 'success');
+    dispatch({ type: 'SET_GAZE_CALIBRATION', payload: { sessionId } });
+    setShowGazeCalibration(false);
+  };
+
+  const handleGazeCalibrationError = (error: string) => {
+    console.error('❌ 시선 캘리브레이션 오류:', error);
+    updateCheckStatus('gaze_calibration', 'error', error);
+  };
+
+  const startGazeCalibration = () => {
+    updateCheckStatus('gaze_calibration', 'checking');
+    setShowGazeCalibration(true);
+  };
+
   const runAllChecks = async () => {
     setIsLoading(true);
     
@@ -203,8 +289,11 @@ const EnvironmentCheck: React.FC = () => {
       await checkNetwork();
       await checkMicrophone();
       await checkCamera();
+      await checkSpeaker(); // 🆕 TTS/스피커 테스트 추가
       
-      setAllChecksComplete(true);
+      // 기본 체크 완료 후 시선 캘리브레이션 시작
+      startGazeCalibration();
+      
     } catch (error) {
       console.error('환경 체크 실패:', error);
     } finally {
@@ -212,43 +301,73 @@ const EnvironmentCheck: React.FC = () => {
     }
   };
 
+  // 모든 체크 완료 여부 확인
+  useEffect(() => {
+    const basicChecksComplete = checkItems.filter(item => item.id !== 'gaze_calibration').every(item => item.status === 'success');
+    const gazeCalibrationComplete = checkItems.find(item => item.id === 'gaze_calibration')?.status === 'success';
+    setAllChecksComplete(basicChecksComplete && gazeCalibrationComplete);
+  }, [checkItems]);
+
   const handlePrevious = () => {
-    // 카메라 스트림 정리
+    // 뒤로 가기는 정상적인 이동이므로 스트림 정리
+    isNavigatingForward.current = false;
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
     }
     navigate('/interview/ai-setup');
   };
 
-  const handleStartInterview = () => {
+  const handleStartInterview = async () => {
     setIsLoading(true);
-    
-    // 4단계 플로우 데이터를 기존 InterviewActive가 기대하는 형식으로 변환
-    const finalSettings = {
-      company: state.jobPosting?.company || '',  // 회사명 사용
-      position: state.jobPosting?.position || '',
-      mode: state.aiSettings?.mode || 'personalized',
-      difficulty: '중간',
-      candidate_name: state.resume?.name || '사용자',
-      resume: state.resume,  // 전체 이력서 데이터 포함
-      documents: [] as string[]
-    };
-    
-    // 기존 설정 형식으로 변환하여 저장
-    dispatch({ 
-      type: 'SET_SETTINGS', 
-      payload: finalSettings
-    });
-    
-    // 임시 세션 ID 생성 (실제로는 API에서 받아야 함)
-    const sessionId = `session_${Date.now()}`;
-    dispatch({ 
-      type: 'SET_SESSION_ID', 
-      payload: sessionId
-    });
-    
-    // 면접 설정을 localStorage에 저장 (새로고침 시 복원용)
     try {
+      // 1. Context에서 캘리브레이션 세션 ID를 가져옵니다.
+      const calibSessionId = state.gazeTracking?.calibrationSessionId;
+      if (!calibSessionId) {
+        throw new Error("캘리브레이션 세션 ID를 찾을 수 없습니다. 캘리브레이션을 다시 진행해주세요.");
+      }
+
+      // 2. 새로 만든 전용 API 함수를 사용하여 캘리브레이션 결과를 요청합니다.
+      console.log(`📊 캘리브레이션 결과 요청: ${calibSessionId}`);
+      const calibResultResponse = await interviewApi.getCalibrationResult(calibSessionId);
+      const fullCalibrationData: CalibrationResult = calibResultResponse;
+
+      // 3. 받은 데이터가 유효한지 검증합니다.
+      if (!fullCalibrationData || !fullCalibrationData.calibration_points) {
+          throw new Error("백엔드로부터 유효한 캘리브레이션 데이터를 받지 못했습니다.");
+      }
+      console.log('✅ 캘리브레이션 전체 데이터 수신 성공:', fullCalibrationData);
+
+      // 4. 캘리브레이션 데이터를 Context에 저장합니다 (S3 Pre-signed URL 플로우용)
+      dispatch({ 
+        type: 'SET_GAZE_CALIBRATION_DATA', 
+        payload: fullCalibrationData 
+      });
+      console.log('📄 캘리브레이션 데이터가 Context에 저장되었습니다');
+
+      // 5. 받아온 전체 캘리브레이션 데이터를 finalSettings에 포함시킵니다.
+      const getDifficultyFromLevel = (level: number | undefined): string => {
+        if (level === undefined) return '중간';
+        if (level <= 3) return '초급';
+        if (level <= 7) return '중급';
+        return '고급';
+      };
+
+      const finalSettings = {
+        company: state.jobPosting?.company || '',
+        position: state.jobPosting?.position || '',
+        posting_id: state.jobPosting?.posting_id,
+        mode: state.aiSettings?.mode || 'personalized',
+        difficulty: getDifficultyFromLevel(state.aiSettings?.aiQualityLevel),
+        candidate_name: state.resume?.name || '사용자',
+        resume: { ...state.resume, user_resume_id: state.resume?.user_resume_id },
+        documents: [] as string[],
+        calibration_data: fullCalibrationData,
+      };
+
+      // 6. 이후 로직은 동일합니다.
+      const sessionId = `session_${Date.now()}`;
+      dispatch({ type: 'SET_SESSION_ID', payload: sessionId });
+
       const stateToSave = {
         jobPosting: state.jobPosting,
         resume: state.resume,
@@ -257,69 +376,41 @@ const EnvironmentCheck: React.FC = () => {
         settings: finalSettings,
         sessionId: sessionId,
         interviewStatus: 'ready',
-        fromEnvironmentCheck: true, // EnvironmentCheck에서 온 것임을 표시
-        needsApiCall: true // API 호출이 필요함을 표시
+        fromEnvironmentCheck: true,
+        needsApiCall: true,
+        apiCallCompleted: false,
+        gazeTracking: state.gazeTracking
       };
       localStorage.setItem('interview_state', JSON.stringify(stateToSave));
-      console.log('💾 면접 설정을 localStorage에 저장 완료 (EnvironmentCheck)');
-    } catch (error) {
-      console.error('❌ localStorage 저장 실패:', error);
-    }
-    
-    // 카메라 스트림을 Context에 저장
-    if (stream) {
-      const videoTracks = stream.getVideoTracks();
-      console.log('📹 Context에 카메라 스트림 저장:', videoTracks.length, '개 트랙');
-      
-      if (videoTracks.length > 0) {
-        const track = videoTracks[0];
-        console.log('📹 환경체크에서 저장하는 트랙 정보:', {
-          readyState: track.readyState,
-          enabled: track.enabled,
-          muted: track.muted,
-          id: track.id,
-          label: track.label
-        });
+
+      isNavigatingForward.current = true;
+
+      if (stream) {
+        dispatch({ type: 'SET_CAMERA_STREAM', payload: stream });
       }
-      
-      dispatch({
-        type: 'SET_CAMERA_STREAM',
-        payload: stream
-      });
-    } else {
-      console.warn('⚠️ 저장할 카메라 스트림이 없습니다!');
-    }
-    
-    dispatch({ 
-      type: 'SET_INTERVIEW_STATUS', 
-      payload: 'ready'
-    });
-    
-    console.log('🚀 면접 시작:', {
-      settings: finalSettings,
-      sessionId,
-      hasStream: !!stream,
-      companyCode: finalSettings.company,  // 디버깅을 위해 회사 코드 로그
-      originalCompany: state.jobPosting?.company
-    });
-    
-    // 실제 면접 시작 - 모드에 따라 다른 페이지로 라우팅
-    setTimeout(() => {
-      if (finalSettings.mode === 'text_competition') {
-        console.log('🎯 텍스트 경쟁 모드 감지 - /interview/active-temp로 이동');
-        navigate('/interview/active-temp');
-      } else {
-        console.log('🎯 기본 모드 - /interview/active로 이동');
+
+      dispatch({ type: 'SET_INTERVIEW_STATUS', payload: 'ready' });
+
+      setTimeout(() => {
         navigate('/interview/active');
-      }
-    }, 1000);
+      }, 500);
+
+    } catch (error) {
+      console.error("❌ 면접 시작 처리 실패:", error);
+      alert(error instanceof Error ? error.message : "캘리브레이션 결과를 가져오는 데 실패했습니다. 다시 시도해주세요.");
+      setIsLoading(false);
+    }
   };
 
-  // 컴포넌트 언마운트 시 스트림 정리
+  // 컴포넌트 언마운트 시 조건부 스트림 정리
   useEffect(() => {
     return () => {
-      if (stream) {
+      // 면접 시작으로 인한 이동이 아닐 경우에만 스트림 중지
+      if (!isNavigatingForward.current && stream) {
+        console.log('🔄 페이지 이탈로 인한 스트림 정리');
         stream.getTracks().forEach(track => track.stop());
+      } else if (isNavigatingForward.current) {
+        console.log('✅ 면접 시작으로 인한 이동 - 스트림 유지');
       }
     };
   }, [stream]);
@@ -352,7 +443,8 @@ const EnvironmentCheck: React.FC = () => {
     }
   };
 
-  const allChecksPassed = checkItems.every(item => item.status === 'success');
+  // allChecksComplete 상태로 대체 (이미 useEffect에서 관리됨)
+  const allChecksPassed = allChecksComplete;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
@@ -388,7 +480,7 @@ const EnvironmentCheck: React.FC = () => {
           )}
 
           {/* 체크 항목들 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {checkItems.map((item, index) => (
               <div
                 key={item.id}
@@ -459,8 +551,39 @@ const EnvironmentCheck: React.FC = () => {
             </p>
           </div>
 
+          {/* 시선 캘리브레이션 모달 */}
+          {showGazeCalibration && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="border-b border-gray-200 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">👁️ 시선 캘리브레이션</h2>
+                      <p className="text-gray-600 text-sm mt-1">비언어적 분석을 위한 시선 추적 설정</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowGazeCalibration(false);
+                        updateCheckStatus('gaze_calibration', 'error', '사용자가 취소했습니다.');
+                      }}
+                      className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <VideoCalibration
+                    onCalibrationComplete={handleGazeCalibrationComplete}
+                    onError={handleGazeCalibrationError}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 최종 확인 */}
-          {allChecksPassed && (
+          {allChecksComplete && (
             <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-8 border border-green-200 text-center">
               <div className="text-6xl mb-4">✅</div>
               <h3 className="text-2xl font-bold text-green-900 mb-4">

@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/common/Header';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { handleApiError } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -71,12 +71,8 @@ const LoginPage: React.FC = () => {
       const result = await login(email, password, redirectPath);
 
       if (!result.success) {
-        // 에러 메시지를 사용자 친화적으로 변환
-        const userFriendlyError = result.error?.includes('validation')
-          ? '이메일 형식이 올바르지 않거나 비밀번호가 너무 짧습니다.'
-          : result.error || '로그인에 실패했습니다.';
-        
-        setError(userFriendlyError);
+        // 로그인 실패 시 항상 같은 메시지로 표시 (보안상 구체적인 오류 정보 숨김)
+        setError('이메일 또는 비밀번호가 일치하지 않습니다.');
       }
     } catch (error: any) {
       // 혹시 모를 예외도 완전히 차단
@@ -87,8 +83,35 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
-    alert(`${provider} 로그인 기능은 준비 중입니다.`);
+  const handleSocialLogin = async (provider: 'google' | 'kakao') => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const oauthOptions: any = {
+        redirectTo: `${process.env.REACT_APP_BASE_URL || window.location.origin}/auth/callback`
+      };
+
+      // 카카오의 경우 이메일과 이름만 요청
+      if (provider === 'kakao') {
+        oauthOptions.scopes = 'account_email name';
+      }
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: oauthOptions
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // OAuth URL로 자동 리다이렉트됨 (data.url은 사용하지 않음)
+    } catch (error: any) {
+      console.error(`${provider} OAuth 오류:`, error);
+      setError(`${provider} 로그인 중 오류가 발생했습니다: ${error.message}`);
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -181,7 +204,7 @@ const LoginPage: React.FC = () => {
 
               <div className="mt-6 space-y-3">
                 <button
-                  onClick={() => handleSocialLogin('Google')}
+                  onClick={() => handleSocialLogin('google')}
                   className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -194,7 +217,7 @@ const LoginPage: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => handleSocialLogin('Kakao')}
+                  onClick={() => handleSocialLogin('kakao')}
                   className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-yellow-400 text-black rounded-xl hover:bg-yellow-500 transition-colors"
                 >
                   <span className="text-lg">💬</span>

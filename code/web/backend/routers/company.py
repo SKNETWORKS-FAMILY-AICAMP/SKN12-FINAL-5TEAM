@@ -13,7 +13,7 @@ from typing import List
 company_router = APIRouter(prefix="/company", tags=["Company"])
 
 # 🟢 GET /company – 회사 정보 조회
-@company_router.get("/", response_model=List[CompanyResponse])
+@company_router.get("", response_model=List[CompanyResponse])
 def get_company_info():
     res = supabase_client.client.from_("company").select("*").execute()
     if not res.data:

@@ -1,8 +1,5 @@
-import { handleApiError } from './api';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-production-domain.com/api' 
-  : 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 // 요청 중복 방지를 위한 맵
 const activeRequests = new Map<string, Promise<any>>();

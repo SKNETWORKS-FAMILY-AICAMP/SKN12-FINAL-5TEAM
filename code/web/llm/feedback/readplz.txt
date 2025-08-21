@@ -1,0 +1,3 @@
+gdown --folder "https://drive.google.com/drive/folders/1kATdhsyq1ta3igDAfAwTSWoVPB7SoJLj"
+pip install "numpy<2" torch scipy supabase httpx sentence-transformers openai
+pip install pandas autogluon dotenv

@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, useState, ReactNode } from 'react';
 import { InterviewSettings, Question, InterviewResult, interviewApi } from '../services/api';
+import { tokenManager } from '../services/api';
+import { GazeAnalysisResult, CalibrationResult } from '../components/test/types';
 
 // JobPosting 타입 정의 - 실제 DB 구조에 맞게 최종 단순화
 interface JobPosting {
@@ -13,6 +15,7 @@ interface JobPosting {
 
 interface Resume {
   id: string;
+  user_resume_id?: number; // ✅ user_resume_id 속성 추가
   name: string;
   email: string;
   phone: string;
@@ -76,6 +79,7 @@ interface InterviewState {
   
   // 세션 정보
   sessionId: string | null;
+  interviewId: number | null;
   
   // 질문 관련
   questions: Question[];
@@ -129,7 +133,27 @@ interface InterviewState {
     initialQuestion: any | null;
     aiPersona: any | null;
     progress: { current: number; total: number; percentage: number } | null;
+    extracted_ai_resume_id: number | null;  // AI 응답에서 추출된 AI 이력서 ID
   } | null;
+  
+  // 시선 추적 관련 상태
+  gazeTracking: {
+    calibrationSessionId: string | null;
+    isCalibrated: boolean;
+    isRecording: boolean;
+    recordingStartTime: number | null;
+    analysisResult: GazeAnalysisResult | null;
+    isAnalyzing: boolean;
+    analysisProgress: number;
+    testId: string | null;
+    mediaId: string | null;
+    calibrationResultData: CalibrationResult | null;
+    // S3 Pre-signed URL 플로우용 추가 필드들
+    gazeAnalysisTaskId: string | null;
+    gazeAnalysisStatus: 'idle' | 'uploading' | 'analyzing' | 'completed' | 'failed';
+    gazeAnalysisProgress: number;
+    gazeS3Key: string | null;
+  };
 }
 
 // 액션 타입 정의
@@ -141,6 +165,7 @@ type InterviewAction =
   | { type: 'SET_CAMERA_STREAM'; payload: MediaStream | null }
   | { type: 'SET_SETTINGS'; payload: InterviewSettings }
   | { type: 'SET_SESSION_ID'; payload: string }
+  | { type: 'SET_INTERVIEW_ID'; payload: number }
   | { type: 'SET_QUESTIONS'; payload: Question[] }
   | { type: 'ADD_QUESTION'; payload: Question }
   | { type: 'SET_CURRENT_QUESTION'; payload: number }
@@ -153,7 +178,15 @@ type InterviewAction =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_TIME_LEFT'; payload: number }
   | { type: 'SET_PROGRESS'; payload: number }
-  | { type: 'SET_TEXT_COMPETITION_DATA'; payload: { initialQuestion: any; aiPersona: any; progress: { current: number; total: number; percentage: number } } }
+  | { type: 'SET_TEXT_COMPETITION_DATA'; payload: { initialQuestion: any; aiPersona: any; progress: { current: number; total: number; percentage: number }; extracted_ai_resume_id?: number | null } }
+  | { type: 'SET_GAZE_CALIBRATION'; payload: { sessionId: string } }
+  | { type: 'SET_GAZE_CALIBRATION_DATA'; payload: CalibrationResult | null }
+  | { type: 'SET_GAZE_RECORDING'; payload: boolean }
+  | { type: 'SET_GAZE_ANALYSIS_RESULT'; payload: GazeAnalysisResult }
+  | { type: 'SET_GAZE_ANALYSIS_PROGRESS'; payload: number }
+  | { type: 'SET_GAZE_TEST_IDS'; payload: { testId: string; mediaId: string } }
+  | { type: 'RESET_GAZE_TRACKING' }
+  | { type: 'SET_EXTRACTED_AI_RESUME_ID'; payload: number }
   | { type: 'RESET_INTERVIEW' }
   | { type: 'SET_INTERVIEW_HISTORY'; payload: InterviewRecord[] }
   | { type: 'ADD_INTERVIEW_RECORD'; payload: InterviewRecord }
@@ -161,7 +194,11 @@ type InterviewAction =
   | { type: 'SET_HISTORY_ERROR'; payload: string | null }
   | { type: 'LOAD_INTERVIEW_HISTORY_START' }
   | { type: 'LOAD_INTERVIEW_HISTORY_SUCCESS'; payload: InterviewRecord[] }
-  | { type: 'LOAD_INTERVIEW_HISTORY_ERROR'; payload: string };
+  | { type: 'LOAD_INTERVIEW_HISTORY_ERROR'; payload: string }
+  | { type: 'SET_GAZE_ANALYSIS_TASK'; payload: string }
+  | { type: 'SET_GAZE_ANALYSIS_STATUS'; payload: 'idle' | 'uploading' | 'analyzing' | 'completed' | 'failed' }
+  | { type: 'SET_GAZE_S3_ANALYSIS_PROGRESS'; payload: number }
+  | { type: 'SET_GAZE_S3_KEY'; payload: string };
 
 // 초기 상태
 const initialState: InterviewState = {
@@ -172,6 +209,7 @@ const initialState: InterviewState = {
   cameraStream: null,
   settings: null,
   sessionId: null,
+  interviewId: null,
   questions: [],
   currentQuestionIndex: 0,
   totalQuestions: 0,
@@ -194,6 +232,23 @@ const initialState: InterviewState = {
   historyLoading: false,
   historyError: null,
   textCompetitionData: null,
+  gazeTracking: {
+    calibrationSessionId: null,
+    isCalibrated: false,
+    isRecording: false,
+    recordingStartTime: null,
+    analysisResult: null,
+    isAnalyzing: false,
+    analysisProgress: 0,
+    testId: null,
+    mediaId: null,
+    calibrationResultData: null,
+    // S3 Pre-signed URL 플로우용 기본값
+    gazeAnalysisTaskId: null,
+    gazeAnalysisStatus: 'idle',
+    gazeAnalysisProgress: 0,
+    gazeS3Key: null,
+  },
 };
 
 // 리듀서 함수
@@ -219,6 +274,9 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
     
     case 'SET_SESSION_ID':
       return { ...state, sessionId: action.payload };
+    
+    case 'SET_INTERVIEW_ID':
+      return { ...state, interviewId: action.payload };
     
     case 'SET_QUESTIONS':
       return { 
@@ -291,7 +349,27 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
       return { ...state, progress: action.payload };
     
     case 'SET_TEXT_COMPETITION_DATA':
-      return { ...state, textCompetitionData: action.payload };
+      return {
+        ...state,
+        textCompetitionData: {
+          ...action.payload,
+          extracted_ai_resume_id: action.payload.extracted_ai_resume_id || null
+        }
+      };
+    
+    case 'SET_EXTRACTED_AI_RESUME_ID':
+      return {
+        ...state,
+        textCompetitionData: state.textCompetitionData ? {
+          ...state.textCompetitionData,
+          extracted_ai_resume_id: action.payload
+        } : {
+          initialQuestion: null,
+          aiPersona: null,
+          progress: null,
+          extracted_ai_resume_id: action.payload
+        }
+      };
     
     case 'RESET_INTERVIEW':
       return initialState;
@@ -340,6 +418,123 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
         historyError: action.payload
       };
     
+    case 'SET_GAZE_CALIBRATION':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          calibrationSessionId: action.payload.sessionId,
+          isCalibrated: true
+        }
+      };
+    
+    case 'SET_GAZE_CALIBRATION_DATA':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          calibrationResultData: action.payload
+        }
+      };
+    
+    case 'SET_GAZE_RECORDING':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          isRecording: action.payload,
+          recordingStartTime: action.payload ? Date.now() : null
+        }
+      };
+    
+    case 'SET_GAZE_ANALYSIS_RESULT':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          analysisResult: action.payload,
+          isAnalyzing: false,
+          analysisProgress: 100
+        }
+      };
+    
+    case 'SET_GAZE_ANALYSIS_PROGRESS':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          analysisProgress: action.payload,
+          isAnalyzing: action.payload < 100
+        }
+      };
+    
+    case 'SET_GAZE_TEST_IDS':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          testId: action.payload.testId,
+          mediaId: action.payload.mediaId
+        }
+      };
+    
+    case 'RESET_GAZE_TRACKING':
+      return {
+        ...state,
+        gazeTracking: {
+          calibrationSessionId: null,
+          isCalibrated: false,
+          isRecording: false,
+          recordingStartTime: null,
+          analysisResult: null,
+          isAnalyzing: false,
+          analysisProgress: 0,
+          testId: null,
+          mediaId: null,
+          calibrationResultData: null,
+          gazeAnalysisTaskId: null,
+          gazeAnalysisStatus: 'idle',
+          gazeAnalysisProgress: 0,
+          gazeS3Key: null,
+        }
+      };
+    
+    case 'SET_GAZE_ANALYSIS_TASK':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          gazeAnalysisTaskId: action.payload
+        }
+      };
+    
+    case 'SET_GAZE_ANALYSIS_STATUS':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          gazeAnalysisStatus: action.payload
+        }
+      };
+    
+    case 'SET_GAZE_S3_ANALYSIS_PROGRESS':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          gazeAnalysisProgress: action.payload
+        }
+      };
+    
+    case 'SET_GAZE_S3_KEY':
+      return {
+        ...state,
+        gazeTracking: {
+          ...state.gazeTracking,
+          gazeS3Key: action.payload
+        }
+      };
+    
     default:
       return state;
   }
@@ -380,40 +575,121 @@ function calculateInterviewStats(interviews: InterviewRecord[]): InterviewStats 
 const InterviewContext = createContext<{
   state: InterviewState;
   dispatch: React.Dispatch<InterviewAction>;
-  loadInterviewHistory: () => Promise<void>;
+  loadInterviewHistory: (force?: boolean) => Promise<void>;
+  updateAuthState: () => void;
 } | null>(null);
 
 // Provider 컴포넌트
 export function InterviewProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(interviewReducer, initialState);
   const hasInitialized = useRef(false);
+  const currentUser = useRef<any>(null);
   
-  // 면접 기록 로드 함수
-  const loadInterviewHistory = async () => {
-    if (state.historyLoading) return; // 이미 로딩 중이면 중복 실행 방지
+  // 인증 상태 관리 (localStorage 변경을 실시간으로 감지)
+  const [authState, setAuthState] = useState(() => {
+    const token = tokenManager.getToken();
+    const user = tokenManager.getUser();
+    return {
+      isAuthenticated: !!(token && user),
+      user: user,
+      token: token
+    };
+  });
+  
+  // 인증 상태 업데이트 함수
+  const updateAuthState = useCallback(() => {
+    const token = tokenManager.getToken();
+    const user = tokenManager.getUser();
+    const isAuthenticated = !!(token && user);
+    
+    setAuthState(prev => {
+      // 인증 상태가 실제로 변경된 경우에만 업데이트
+      if (prev.isAuthenticated !== isAuthenticated || prev.user?.user_id !== user?.user_id) {
+        console.log('🔄 인증 상태 업데이트:', isAuthenticated ? '로그인됨' : '로그아웃됨');
+        return {
+          isAuthenticated,
+          user,
+          token
+        };
+      }
+      return prev;
+    });
+  }, []);
+
+  // 면접 기록 로드 함수 (useCallback으로 최적화)
+  const loadInterviewHistory = useCallback(async (force: boolean = false) => {
+    // authState 사용하여 인증 상태 체크
+    if (!authState.isAuthenticated) {
+      // 로그인되지 않은 경우 빈 상태로 설정
+      console.log('🔒 로그인되지 않음: 면접 히스토리 로드 건너뜀');
+      dispatch({ 
+        type: 'LOAD_INTERVIEW_HISTORY_SUCCESS', 
+        payload: [] 
+      });
+      return;
+    }
+    
+    if (state.historyLoading && !force) return; // 이미 로딩 중이면 중복 실행 방지
     
     dispatch({ type: 'LOAD_INTERVIEW_HISTORY_START' });
     
     try {
-      const response = await interviewApi.getInterviewHistory();
-      
-      const processedInterviews: InterviewRecord[] = response.interviews.map(interview => {
-        const date = new Date(interview.completed_at);
+      console.log('📊 면접 히스토리 로드 시작 (사용자:', authState.user?.email, ')');
+      // 새로운 /interview/history API 호출
+      const interviews = await interviewApi.getInterviewHistory();
+      console.log(interviews)
+      const processedInterviews: InterviewRecord[] = interviews.map(interview => {
+        // DB에서 받은 시간이 한국시간으로 저장되어 있으므로 직접 사용
+        const date = new Date(interview.date);
+        // total_feedback에서 점수 추출 (통합 구조 지원)
+        let score = 0; // 기본값
+        try {
+          if (interview.total_feedback) {
+            const feedbackData = JSON.parse(interview.total_feedback);
+            
+            // 통합 구조 {"user": {...}, "ai_interviewer": {...}}인 경우
+            if (feedbackData.user && feedbackData.user.overall_score !== undefined) {
+              score = feedbackData.user.overall_score;
+            } 
+            // 기존 구조 {"overall_score": ...}인 경우  
+            else if (feedbackData.overall_score !== undefined) {
+              score = feedbackData.overall_score;
+            }
+            // AI 경쟁 면접인 경우 AI 점수도 고려 (사용자 점수 우선)
+            else if (feedbackData.ai_interviewer && feedbackData.ai_interviewer.overall_score !== undefined) {
+              score = feedbackData.ai_interviewer.overall_score;
+            }
+          }
+        } catch (e) {
+          console.log('피드백 파싱 실패, 패턴 매칭 시도:', e);
+          // 숫자 패턴 매칭으로 점수 추출 시도
+          const scoreMatch = interview.total_feedback?.match(/(\d+)점/);
+          if (scoreMatch) {
+            score = parseInt(scoreMatch[1]);
+          }
+        }
+        console.log(interview)
         return {
-          session_id: interview.session_id,
-          company: interview.settings.company,
-          position: interview.settings.position,
+          session_id: interview.interview_id.toString(),
+          company: interview.company?.name || '회사명 없음',
+          position: interview.position?.position_name || '직군명 없음',
           date: date.toLocaleDateString('ko-KR'),
           time: date.toLocaleTimeString('ko-KR', { 
             hour: '2-digit', 
-            minute: '2-digit' 
+            minute: '2-digit'
           }),
           duration: `${Math.floor(Math.random() * 20 + 15)}분 ${Math.floor(Math.random() * 60)}초`,
-          score: interview.total_score,
-          mode: interview.settings.mode,
+          score: score,
+          mode: 'standard', // TODO: 면접 모드 정보 추가 필요
           status: '완료',
-          settings: interview.settings,
-          completed_at: interview.completed_at
+          settings: { 
+            company: interview.company?.name || '회사명 없음', 
+            position: interview.position?.position_name || '직군명 없음', 
+            mode: 'standard', 
+            difficulty: '보통', 
+            candidate_name: authState.user?.name || '사용자' 
+          },
+          completed_at: interview.date
         };
       });
 
@@ -425,46 +701,89 @@ export function InterviewProvider({ children }: { children: ReactNode }) {
         payload: processedInterviews 
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('면접 기록 로드 실패:', error);
+      
+      // 401 에러 (인증 실패) 처리
+      if (error.response?.status === 401) {
+        console.log('🔒 인증 만료됨: 토큰 제거 및 빈 상태로 설정');
+        tokenManager.clearAuth();
+        dispatch({ 
+          type: 'LOAD_INTERVIEW_HISTORY_SUCCESS', 
+          payload: [] 
+        });
+        return;
+      }
+      
+      // 404 에러 (면접 기록 없음) 처리  
+      if (error.response?.status === 404) {
+        console.log('📊 면접 기록 없음');
+        dispatch({ 
+          type: 'LOAD_INTERVIEW_HISTORY_SUCCESS', 
+          payload: [] 
+        });
+        return;
+      }
+      
+      // 기타 에러 처리
       dispatch({ 
         type: 'LOAD_INTERVIEW_HISTORY_ERROR', 
         payload: '면접 기록을 불러오는데 실패했습니다.' 
       });
       
-      // 에러 발생 시 기본 데이터 설정
-      const fallbackData: InterviewRecord[] = [
-        {
-          session_id: '1',
-          company: '네이버',
-          position: '백엔드 개발자',
-          date: '2024-01-16',
-          time: '14:00',
-          duration: '18분 32초',
-          score: 85,
-          mode: 'ai_competition',
-          status: '완료',
-          settings: { company: '네이버', position: '백엔드 개발자', mode: 'ai_competition', difficulty: '중간', candidate_name: '홍길동' },
-          completed_at: '2024-01-16T14:00:00Z'
-        }
-      ];
-      
+      // 에러 발생 시 빈 배열 반환
       dispatch({ 
         type: 'LOAD_INTERVIEW_HISTORY_SUCCESS', 
-        payload: fallbackData 
+        payload: [] 
       });
     }
-  };
+  }, [authState.isAuthenticated, authState.user?.email, authState.user?.name, state.historyLoading, dispatch]);
 
-  // 컴포넌트 마운트 시 면접 기록 로드 (React Strict Mode 중복 방지)
+  // 초기 로드 시 인증 상태 동기화
   useEffect(() => {
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
-    loadInterviewHistory();
-  }, []);
+    updateAuthState();
+    
+    // localStorage 변경 감지 (다른 탭에서 로그인/로그아웃 시)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth_token' || e.key === 'user_profile') {
+        console.log('🔑 localStorage 변경 감지:', e.key);
+        updateAuthState();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [updateAuthState]);
+
+  // 인증 상태 변경 시 면접 히스토리 로드
+  useEffect(() => {
+    const userChanged = currentUser.current?.user_id !== authState.user?.user_id;
+    currentUser.current = authState.user;
+
+    if (!authState.isAuthenticated) {
+      // 로그아웃된 경우 상태 초기화
+      console.log('🔓 로그아웃 감지: 면접 히스토리 초기화');
+      hasInitialized.current = false;
+      dispatch({ 
+        type: 'LOAD_INTERVIEW_HISTORY_SUCCESS', 
+        payload: [] 
+      });
+      return;
+    }
+
+    // 로그인 상태이고 (사용자가 변경되었거나 초기 로드인 경우) 면접 히스토리 로드
+    if (userChanged || !hasInitialized.current) {
+      console.log('🔄 인증 상태 변경 감지: 면접 히스토리 로드');
+      hasInitialized.current = true;
+      loadInterviewHistory(true); // force=true로 강제 새로고침
+    }
+  }, [authState.isAuthenticated, authState.user?.user_id, authState.user, loadInterviewHistory]);
   
   return (
-    <InterviewContext.Provider value={{ state, dispatch, loadInterviewHistory }}>
+    <InterviewContext.Provider value={{ state, dispatch, loadInterviewHistory, updateAuthState }}>
       {children}
     </InterviewContext.Provider>
   );

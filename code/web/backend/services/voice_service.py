@@ -22,7 +22,7 @@ async def elevenlabs_tts_stream(text: str, voice_id: str) -> bytes:
     data = {
         "text": text,
         "model_id": "eleven_multilingual_v2",
-        "voice_settings": {"stability": 0.5, "similarity_boost": 0.5},
+        "voice_settings": {"stability": 0.5, "similarity_boost": 0.5, 'speed' : 1.0},
     }
 
     async with aiohttp.ClientSession() as session:

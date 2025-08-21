@@ -1,7 +1,7 @@
 import os
 from supabase import create_client, Client
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
 # .env 파일 로드
@@ -11,7 +11,7 @@ class SupabaseManager:
     def __init__(self):
         # 환경변수에서 Supabase 설정 읽기
         self.url = os.getenv('SUPABASE_URL')
-        self.key = os.getenv('SUPABASE_KEY')
+        self.key = os.getenv('SUPABASE_ANON_KEY')
         
         if not self.url or not self.key:
             raise ValueError("SUPABASE_URL과 SUPABASE_KEY 환경변수를 설정해주세요.")
@@ -82,7 +82,36 @@ class SupabaseManager:
     def save_interview_session(self, user_id, ai_resume_id=None, user_resume_id=None, 
                           posting_id=None, company_id=None, position_id=None):
         try:
-            # 임시로 외래키 검증 비활성화하고 기존 방식 사용
+            # 외래키 검증 활성화 (데이터 무결성 보장)
+            validation_results = self._validate_foreign_keys(
+                user_id=user_id,
+                company_id=company_id, 
+                ai_resume_id=ai_resume_id,
+                user_resume_id=user_resume_id,
+                posting_id=posting_id,
+                position_id=position_id
+            )
+            
+            # 필수 외래키(user_id) 검증 실패 시 오류
+            if not validation_results.get('user_id', False):
+                raise ValueError(f"유효하지 않은 user_id: {user_id}")
+            
+            # 선택적 외래키들 검증 (제공되었지만 잘못된 경우)
+            invalid_keys = []
+            if company_id and not validation_results.get('company_id', True):
+                invalid_keys.append(f"company_id: {company_id}")
+            if ai_resume_id and not validation_results.get('ai_resume_id', True):
+                invalid_keys.append(f"ai_resume_id: {ai_resume_id}")
+            if user_resume_id and not validation_results.get('user_resume_id', True):
+                invalid_keys.append(f"user_resume_id: {user_resume_id}")
+            if posting_id and not validation_results.get('posting_id', True):
+                invalid_keys.append(f"posting_id: {posting_id}")
+            if position_id and not validation_results.get('position_id', True):
+                invalid_keys.append(f"position_id: {position_id}")
+                
+            if invalid_keys:
+                raise ValueError(f"유효하지 않은 외래키들: {', '.join(invalid_keys)}")
+            
             insert_data = {
                 'user_id': user_id,
                 'ai_resume_id': ai_resume_id,
@@ -90,7 +119,7 @@ class SupabaseManager:
                 'posting_id': posting_id,
                 'company_id': company_id,
                 'position_id': position_id,
-                'date': datetime.now().isoformat()
+                'date': (datetime.now(timezone.utc) + timedelta(hours=9)).isoformat()
             }
             
             print("insert_data:", insert_data)
@@ -112,7 +141,7 @@ class SupabaseManager:
         try:
             insert_data = {
                 'interview_id': interview_id,
-                'who': question_data.get('who', 'interviewer'),
+                'who': question_data.get('who', 'user'),  # 기본값을 user로 변경
                 'question_index': question_data.get('question_index'),
                 'question_id': question_data.get('question_id'),
                 'question_content': question_data.get('question'),
@@ -278,4 +307,179 @@ class SupabaseManager:
             
         except Exception as e:
             print(f"ERROR: 면접 정보 조회 실패: {str(e)}")
+            return None
+
+    def get_position_info(self, position_id):
+        """
+        직군 정보 조회
+        
+        Args:
+            position_id (int): 직군 ID
+            
+        Returns:
+            dict: 직군 정보
+        """
+        try:
+            result = self.supabase.table('position')\
+                                  .select("*")\
+                                  .eq('position_id', position_id)\
+                                  .execute()
+            
+            if not result.data:
+                print(f"WARNING: Position ID {position_id}를 찾을 수 없습니다.")
+                return None
+            
+            position_data = result.data[0]
+            print(f"SUCCESS: Position ID {position_id} 정보 조회 완료")
+            return position_data
+            
+        except Exception as e:
+            print(f"ERROR: 직군 정보 조회 실패: {str(e)}")
+            return None
+
+    def get_posting_info(self, posting_id):
+        """
+        공고 정보 조회 (회사 정보 포함)
+        
+        Args:
+            posting_id (int): 공고 ID
+            
+        Returns:
+            dict: 공고 정보 (회사 정보 포함)
+        """
+        try:
+            result = self.supabase.table('posting')\
+                                  .select("*, company(*), position(*)")\
+                                  .eq('posting_id', posting_id)\
+                                  .execute()
+            
+            if not result.data:
+                print(f"WARNING: Posting ID {posting_id}를 찾을 수 없습니다.")
+                return None
+            
+            posting_data = result.data[0]
+            print(f"SUCCESS: Posting ID {posting_id} 정보 조회 완료")
+            return posting_data
+            
+        except Exception as e:
+            print(f"ERROR: 공고 정보 조회 실패: {str(e)}")
+            return None
+
+    def get_ai_resume_info(self, ai_resume_id):
+        """
+        AI 이력서 정보 조회 (직군 정보 포함)
+        
+        Args:
+            ai_resume_id (int): AI 이력서 ID
+            
+        Returns:
+            dict: AI 이력서 정보 (직군 정보 포함)
+        """
+        try:
+            result = self.supabase.table('ai_resume')\
+                                  .select("*, position(*)")\
+                                  .eq('ai_resume_id', ai_resume_id)\
+                                  .execute()
+            
+            if not result.data:
+                print(f"WARNING: AI Resume ID {ai_resume_id}를 찾을 수 없습니다.")
+                return None
+            
+            resume_data = result.data[0]
+            print(f"SUCCESS: AI Resume ID {ai_resume_id} 정보 조회 완료")
+            return resume_data
+            
+        except Exception as e:
+            print(f"ERROR: AI 이력서 정보 조회 실패: {str(e)}")
+            return None
+
+    def get_user_resume_info(self, user_resume_id):
+        """
+        사용자 이력서 정보 조회 (직군 정보 포함)
+        
+        Args:
+            user_resume_id (int): 사용자 이력서 ID
+            
+        Returns:
+            dict: 사용자 이력서 정보 (직군 정보 포함)
+        """
+        try:
+            result = self.supabase.table('user_resume')\
+                                  .select("*, position(*)")\
+                                  .eq('user_resume_id', user_resume_id)\
+                                  .execute()
+            
+            if not result.data:
+                print(f"WARNING: User Resume ID {user_resume_id}를 찾을 수 없습니다.")
+                return None
+            
+            resume_data = result.data[0]
+            print(f"SUCCESS: User Resume ID {user_resume_id} 정보 조회 완료")
+            return resume_data
+            
+        except Exception as e:
+            print(f"ERROR: 사용자 이력서 정보 조회 실패: {str(e)}")
+            return None
+    
+    def update_interview_feedback(self, interview_id, feedback_json):
+        """통합 피드백 업데이트 (JSON 문자열 형태)"""
+        try:
+            result = self.supabase.table('interview')\
+                                  .update({'total_feedback': feedback_json})\
+                                  .eq('interview_id', interview_id)\
+                                  .execute()
+            
+            print(f"SUCCESS: 통합 피드백 저장 완료 (Interview ID: {interview_id})")
+            return True
+            
+        except Exception as e:
+            print(f"ERROR: 통합 피드백 저장 실패: {str(e)}")
+            return False
+    
+    def save_improvement_plans(self, interview_id, plans_json):
+        """통합 개선 계획 저장 (JSON 문자열 형태)"""
+        try:
+            insert_data = {
+                'interview_id': interview_id,
+                'shortly_plan': plans_json,
+                'long_plan': plans_json  # 통합 구조로 동일하게 저장
+            }
+            
+            result = self.supabase.table('plans').insert(insert_data).execute()
+            plan_id = result.data[0]['plan_id'] if result.data else None
+            print(f"SUCCESS: 통합 개선 계획 저장 완료 (Plan ID: {plan_id})")
+            return plan_id
+            
+        except Exception as e:
+            print(f"ERROR: 통합 개선 계획 저장 실패: {str(e)}")
+            return None
+            
+    def save_history_detail(self, interview_id, question_result):
+        """히스토리 상세 저장 (통합 버전)"""
+        return self.save_question_answer(interview_id, question_result)
+    
+    def save_question_answer(self, interview_id, question_data):
+        """질문-답변 상세 정보를 history_detail 테이블에 저장"""
+        try:
+            insert_data = {
+                'interview_id': interview_id,
+                'who': question_data.get('who', 'user'),
+                'question_index': question_data.get('question_index', 1),
+                'question_id': None,  # fix_question 테이블 미사용 시
+                'question_content': question_data.get('question', ''),
+                'question_intent': question_data.get('intent', ''),
+                'question_level': question_data.get('question_level', 1),
+                'answer': question_data.get('answer', ''),
+                'feedback': question_data.get('llm_evaluation', ''),
+                'sequence': question_data.get('question_index', 1),
+                'duration': question_data.get('duration', 120)
+            }
+            
+            result = self.supabase.table('history_detail').insert(insert_data).execute()
+            detail_id = result.data[0]['detail_id'] if result.data else None
+            print(f"SUCCESS: Q{question_data.get('question_index')} 저장 완료 (ID: {detail_id})")
+            return detail_id
+            
+        except Exception as e:
+            print(f"ERROR: 질문-답변 저장 실패: {str(e)}")
             return None

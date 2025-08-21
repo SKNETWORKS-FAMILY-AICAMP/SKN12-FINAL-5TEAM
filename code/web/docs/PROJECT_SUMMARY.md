@@ -7,33 +7,34 @@
 ## 🏗️ 시스템 아키텍처
 
 ### 기술 스택
-- **Backend**: Python 3.8+, Flask 3.0.3
-- **AI Engine**: OpenAI GPT-4o-mini
-- **Document Processing**: PyPDF2, python-docx
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
-- **Data**: JSON 파일 기반 설정 및 데이터 관리
+- **Backend**: Python 3.10+, FastAPI 0.104+, Uvicorn
+- **AI Engine**: OpenAI GPT-4o-mini, AutoML (AutoGluon)
+- **Database**: Supabase (PostgreSQL), Real-time subscriptions  
+- **Frontend**: React 19.1.0, TypeScript, Tailwind CSS
+- **Document Processing**: PyPDF2, python-docx, sentence-transformers
+- **Infrastructure**: CORS middleware, JWT authentication
 
-### 아키텍처 구조
+### 아키텍처 구조 (v3.0)
 ```
 ┌─────────────────────┐
-│   Web Interface     │ ← 사용자 인터페이스
-│   (HTML/CSS/JS)     │
+│   React Frontend    │ ← 사용자 인터페이스 (SPA)
+│   (TypeScript)      │
 └─────────────────────┘
            ↓
 ┌─────────────────────┐
-│   Flask Web App     │ ← 웹 서버 및 라우팅
-│   (web/app.py)      │
+│   FastAPI Backend   │ ← RESTful API 서버
+│   (backend/main.py) │
 └─────────────────────┘
            ↓
 ┌─────────────────────┐
-│   Core Modules      │ ← 비즈니스 로직
-│   (core/*.py)       │
+│   LLM Modules       │ ← AI/ML 비즈니스 로직
+│   (llm/*/service.py)│
 └─────────────────────┘
-     ↓         ↓
-┌─────────┐  ┌─────────┐
-│  Data   │  │ OpenAI  │ ← 외부 서비스
-│ (JSON)  │  │   API   │
-└─────────┘  └─────────┘
+     ↓         ↓         ↓
+┌─────────┐ ┌─────────┐ ┌─────────┐
+│Supabase │ │ OpenAI  │ │ AutoML  │ ← 외부 서비스
+│   DB    │ │   API   │ │ Models  │
+└─────────┘ └─────────┘ └─────────┘
 ```
 
 ## 🚀 주요 기능
@@ -58,33 +59,31 @@
 ## 📁 코드 구조
 
 ```
-final_Q_test/
-├── 🔧 core/                     # 핵심 비즈니스 로직
-│   ├── config.py               # 통합 설정 관리
-│   ├── constants.py            # 상수 정의
-│   ├── logging_config.py       # 로깅 시스템
-│   ├── exceptions.py           # 예외 처리
-│   ├── document_processor.py   # 문서 처리
-│   ├── interview_system.py     # 면접 시스템
-│   ├── ai_candidate_model.py   # AI 지원자 모델
-│   ├── conversation_context.py # 대화 컨텍스트
-│   ├── llm_manager.py          # LLM 관리
-│   └── personalized_system.py  # 개인화 시스템
-├── 🌐 web/                      # 웹 애플리케이션
-│   └── app.py                  # Flask 메인 앱
-├── 📊 data/                     # 데이터 파일
-│   ├── companies_data.json     # 7개 기업 정보
-│   ├── candidate_personas.json # AI 지원자 페르소나
-│   └── fixed_questions.json    # 고정 질문 세트
+yoseop_1/                        # v3.0 모듈형 아키텍처
+├── 🚀 backend/                  # FastAPI 웹 서버
+│   ├── main.py                 # FastAPI 앱 엔트리포인트
+│   ├── routers/                # API 라우터 (RESTful)
+│   │   ├── interview.py        # 면접 관련 API
+│   │   ├── auth.py             # 인증 API
+│   │   └── company.py          # 회사 관리 API
+│   ├── services/               # 비즈니스 로직 레이어
+│   │   └── interview_service.py # 면접 서비스
+│   └── schemas/                # Pydantic 데이터 모델
+├── 🎨 frontend/                 # React SPA
+│   ├── src/components/         # React 컴포넌트
+│   ├── src/pages/              # 페이지 컴포넌트  
+│   ├── src/hooks/              # Custom hooks
+│   └── package.json            # Node.js 의존성
+├── 🧠 llm/                      # AI/ML 모듈 (v3.0)
+│   ├── session/                # 세션 관리
+│   ├── interviewer/            # 면접관 (질문 생성)
+│   ├── candidate/              # AI 지원자 (답변 생성)
+│   ├── feedback/               # 평가 시스템 (ML + LLM)
+│   └── shared/                 # 공용 유틸리티
+├── 📊 scripts/                  # 실행 스크립트
+│   └── start_backend.py        # 백엔드 시작 스크립트
 ├── 📚 docs/                     # 문서
-│   ├── README.md              # 메인 문서
-│   ├── API_REFERENCE.md       # API 문서
-│   ├── USER_GUIDE.md          # 사용자 가이드
-│   └── DEVELOPER_GUIDE.md     # 개발자 가이드
-├── 🗂️ config/                  # 설정 파일
-├── 📁 uploads/                 # 업로드 파일
-├── 📝 logs/                    # 로그 파일
-└── 🔑 .env.example            # 환경변수 예시
+└── 🔑 requirements.txt         # Python 의존성
 ```
 
 ## 🎭 면접 모드 상세

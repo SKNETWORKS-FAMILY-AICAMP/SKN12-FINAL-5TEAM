@@ -5,16 +5,9 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useAuth } from '../hooks/useAuth';
 import { usePositions } from '../hooks/usePositions';
 import { useResumes } from '../hooks/useResumes';
+import { useInterviewHistory } from '../hooks/useInterviewHistory';
 import { Position, ResumeResponse, ResumeCreate } from '../services/api';
 
-interface InterviewRecord {
-  id: string;
-  company: string;
-  position: string;
-  date: string;
-  score: number;
-  status: 'completed' | 'in_progress' | 'failed';
-}
 
 // UserResume 인터페이스를 백엔드 스키마와 일치하도록 수정
 interface UserResume extends ResumeResponse {
@@ -25,7 +18,7 @@ interface UserResume extends ResumeResponse {
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, refreshAuthStatus } = useAuth();
   const [activeTab, setActiveTab] = useState('resume');
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'edit' | 'view'>('list');
   const [editingResumeId, setEditingResumeId] = useState<number | null>(null);
@@ -33,38 +26,13 @@ const ProfilePage: React.FC = () => {
   // 커스텀 훅들 사용
   const { positions, loading: positionsLoading } = usePositions();
   const { resumes: resumesData, loading: resumesLoading, error: resumesError, createResume, updateResume, deleteResume } = useResumes();
+  const { interviews: interviewHistory, stats: interviewStats, isLoading: historyLoading, error: historyError, refreshHistory } = useInterviewHistory();
   const [userInfo, setUserInfo] = useState({
     name: user?.name || '',
     email: user?.email || '',
     profileImage: null as string | null
   });
 
-  const [interviewHistory] = useState<InterviewRecord[]>([
-    {
-      id: '1',
-      company: '네이버',
-      position: '프론트엔드 개발자',
-      date: '2025-07-20',
-      score: 87,
-      status: 'completed'
-    },
-    {
-      id: '2', 
-      company: '카카오',
-      position: '백엔드 개발자',
-      date: '2025-07-18',
-      score: 92,
-      status: 'completed'
-    },
-    {
-      id: '3',
-      company: '라인',
-      position: '풀스택 개발자', 
-      date: '2025-07-15',
-      score: 78,
-      status: 'completed'
-    }
-  ]);
 
 
   const [currentResume, setCurrentResume] = useState<UserResume>({
@@ -291,6 +259,74 @@ const ProfilePage: React.FC = () => {
     }));
   };
 
+  const handleUserInfoSave = async () => {
+    // 이름과 이메일 검증
+    if (!userInfo.name.trim()) {
+      alert('이름을 입력해주세요.');
+      return;
+    }
+    if (!userInfo.email.trim()) {
+      alert('이메일을 입력해주세요.');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        alert('인증이 필요합니다. 다시 로그인해주세요.');
+        return;
+      }
+
+      const response = await fetch('/user/me', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: userInfo.name.trim(),
+          email: userInfo.email.trim()
+        }),
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        
+        // localStorage의 사용자 정보도 업데이트
+        const existingUser = localStorage.getItem('user_profile');
+        if (existingUser) {
+          const userData = JSON.parse(existingUser);
+          userData.name = updatedUser.name;
+          userData.email = updatedUser.email;
+          localStorage.setItem('user_profile', JSON.stringify(userData));
+        }
+        
+        // 로컬 상태도 즉시 업데이트
+        setUserInfo({
+          name: updatedUser.name,
+          email: updatedUser.email,
+          profileImage: userInfo.profileImage
+        });
+        
+        alert('정보가 성공적으로 저장되었습니다.');
+        
+        // 인증 상태 새로고침으로 사용자 정보 갱신
+        await refreshAuthStatus();
+        
+        // 잠깐 기다린 후 페이지 새로고침 (모든 컴포넌트 확실히 갱신)
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+      } else {
+        const errorData = await response.json();
+        alert(`저장에 실패했습니다: ${errorData.detail || '알 수 없는 오류'}`);
+      }
+    } catch (error) {
+      console.error('정보 저장 오류:', error);
+      alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+    }
+  };
+
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600 bg-green-100';
     if (score >= 80) return 'text-blue-600 bg-blue-100';
@@ -399,13 +435,13 @@ const ProfilePage: React.FC = () => {
                           </div>
                         </div>
                         
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleViewResume(resume);
                             }}
-                            className="flex-1 bg-slate-50 text-slate-600 py-2 px-3 rounded text-sm font-medium hover:bg-slate-100 transition-colors"
+                            className="flex-1 bg-slate-50 text-slate-600 py-2 px-2 rounded text-xs font-medium hover:bg-slate-100 transition-colors whitespace-nowrap"
                           >
                             👁️ 보기
                           </button>
@@ -414,7 +450,7 @@ const ProfilePage: React.FC = () => {
                               e.stopPropagation();
                               handleEditResume(resume);
                             }}
-                            className="flex-1 bg-blue-50 text-blue-600 py-2 px-3 rounded text-sm font-medium hover:bg-blue-100 transition-colors"
+                            className="flex-1 bg-blue-50 text-blue-600 py-2 px-2 rounded text-xs font-medium hover:bg-blue-100 transition-colors whitespace-nowrap"
                           >
                             ✏️ 수정
                           </button>
@@ -423,7 +459,7 @@ const ProfilePage: React.FC = () => {
                               e.stopPropagation();
                               handleCopyResume(resume);
                             }}
-                            className="flex-1 bg-green-50 text-green-600 py-2 px-3 rounded text-sm font-medium hover:bg-green-100 transition-colors"
+                            className="flex-1 bg-green-50 text-green-600 py-2 px-2 rounded text-xs font-medium hover:bg-green-100 transition-colors whitespace-nowrap"
                           >
                             📋 복사
                           </button>
@@ -432,7 +468,7 @@ const ProfilePage: React.FC = () => {
                               e.stopPropagation();
                               handleDeleteResume(resume.user_resume_id);
                             }}
-                            className="flex-1 bg-red-50 text-red-600 py-2 px-3 rounded text-sm font-medium hover:bg-red-100 transition-colors"
+                            className="flex-1 bg-red-50 text-red-600 py-2 px-2 rounded text-xs font-medium hover:bg-red-100 transition-colors whitespace-nowrap"
                           >
                             🗑️ 삭제
                           </button>
@@ -581,21 +617,6 @@ const ProfilePage: React.FC = () => {
                 <h2 className="text-2xl font-bold text-slate-900">
                   {currentView === 'create' ? '이력서 작성' : '이력서 수정'}
                 </h2>
-                <div className="flex-1" />
-                <button
-                  onClick={handleResumeSave}
-                  disabled={resumesLoading}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {resumesLoading ? (
-                    <div className="flex items-center gap-2">
-                      <LoadingSpinner size="sm" color="white" />
-                      저장 중...
-                    </div>
-                  ) : (
-                    '💾 저장하기'
-                  )}
-                </button>
               </div>
 
               <div className="bg-white rounded-lg border border-slate-200 p-6 space-y-6">
@@ -724,6 +745,24 @@ const ProfilePage: React.FC = () => {
               <div className="text-sm text-slate-500 text-center">
                 * 표시된 항목은 필수 입력 사항입니다.
               </div>
+
+              {/* 저장 버튼 */}
+              <div className="flex justify-center pt-6">
+                <button
+                  onClick={handleResumeSave}
+                  disabled={resumesLoading}
+                  className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-lg font-medium"
+                >
+                  {resumesLoading ? (
+                    <div className="flex items-center gap-2">
+                      <LoadingSpinner size="sm" color="white" />
+                      저장 중...
+                    </div>
+                  ) : (
+                    '💾 저장하기'
+                  )}
+                </button>
+              </div>
             </div>
           );
         }
@@ -735,71 +774,131 @@ const ProfilePage: React.FC = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-slate-900">면접 히스토리</h2>
-              <button 
-                onClick={() => navigate('/interview/job-posting')}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                🚀 새 면접 시작
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => refreshHistory()}
+                  disabled={historyLoading}
+                  className="bg-slate-100 text-slate-600 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  {historyLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      새로고침 중...
+                    </>
+                  ) : (
+                    <>
+                      🔄 새로고침
+                    </>
+                  )}
+                </button>
+                <button 
+                  onClick={() => navigate('/interview/job-posting')}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  🚀 새 면접 시작
+                </button>
+              </div>
             </div>
 
             <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">면접 통계</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{interviewHistory.length}</div>
-                  <div className="text-sm text-slate-600">총 면접 횟수</div>
+              {historyLoading ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner size="sm" />
+                  <span className="ml-2 text-slate-500">통계 로딩 중...</span>
                 </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
-                    {Math.round(interviewHistory.reduce((sum, interview) => sum + interview.score, 0) / interviewHistory.length)}
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{interviewStats.totalInterviews}</div>
+                    <div className="text-sm text-slate-600">총 면접 횟수</div>
                   </div>
-                  <div className="text-sm text-slate-600">평균 점수</div>
-                </div>
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {interviewHistory.filter(interview => interview.score >= 80).length}
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {interviewStats.averageScore}
+                    </div>
+                    <div className="text-sm text-slate-600">평균 점수</div>
                   </div>
-                  <div className="text-sm text-slate-600">80점 이상</div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {interviewHistory.filter(interview => interview.score >= 80).length}
+                    </div>
+                    <div className="text-sm text-slate-600">80점 이상</div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            <div className="space-y-4">
-              {interviewHistory.map(interview => (
-                <div key={interview.id} className="bg-white rounded-lg border border-slate-200 p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold">
-                        {interview.company.charAt(0)}
+            {historyLoading ? (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" />
+                <span className="ml-3 text-slate-600">면접 기록을 불러오는 중...</span>
+              </div>
+            ) : historyError ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">면접 기록을 불러올 수 없습니다</h3>
+                <p className="text-slate-600 mb-4">{historyError}</p>
+                <button 
+                  onClick={() => refreshHistory()}
+                  disabled={historyLoading}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {historyLoading ? '다시 시도 중...' : '다시 시도'}
+                </button>
+              </div>
+            ) : interviewHistory.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">📊</div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">아직 면접 기록이 없습니다</h3>
+                <p className="text-slate-600 mb-6">첫 면접을 시작해보세요!</p>
+                <button 
+                  onClick={() => navigate('/interview/job-posting')}
+                  className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  🚀 면접 시작하기
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {interviewHistory.map(interview => (
+                  <div key={interview.session_id} className="bg-white rounded-lg border border-slate-200 p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold">
+                          {interview.company.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900">{interview.company}</h3>
+                          <p className="text-slate-600">{interview.position}</p>
+                          <p className="text-sm text-slate-500">{interview.date} {interview.time}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-slate-900">{interview.company}</h3>
-                        <p className="text-slate-600">{interview.position}</p>
-                        <p className="text-sm text-slate-500">{interview.date}</p>
+                      <div className="flex items-center space-x-4">
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(interview.score)}`}>
+                          {interview.score}점
+                        </div>
+                        {getStatusBadge(interview.status)}
+                        <button 
+                          onClick={() => {
+                            console.log('🔍 ProfilePage 결과 보기 클릭:', interview.session_id);
+                            if (!interview.session_id) {
+                              console.error('❌ session_id가 없습니다:', interview);
+                              alert('면접 결과를 불러올 수 없습니다. 데이터가 손상되었을 수 있습니다.');
+                              return;
+                            }
+                            navigate(`/interview/results/${interview.session_id}`);
+                          }}
+                          className="text-blue-600 hover:text-blue-700 px-3 py-1 rounded text-sm"
+                        >
+                          결과 보기
+                        </button>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(interview.score)}`}>
-                        {interview.score}점
-                      </div>
-                      {getStatusBadge(interview.status)}
-                      <button 
-                        onClick={() => navigate('/interview/results', { 
-                          state: { 
-                            interviewId: interview.id,
-                            skipApiCall: true 
-                          }
-                        })}
-                        className="text-blue-600 hover:text-blue-700 px-3 py-1 rounded text-sm"
-                      >
-                        결과 보기
-                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
@@ -820,9 +919,6 @@ const ProfilePage: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">{userInfo.name}</h3>
                   <p className="text-slate-600">{userInfo.email}</p>
-                  <button className="text-blue-600 hover:text-blue-700 text-sm mt-1">
-                    프로필 사진 변경
-                  </button>
                 </div>
               </div>
 
@@ -850,24 +946,16 @@ const ProfilePage: React.FC = () => {
               <div className="mt-6 pt-6 border-t border-slate-200">
                 <h4 className="text-lg font-semibold text-slate-900 mb-4">계정 설정</h4>
                 <div className="space-y-4">
-                  <button className="w-full md:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                    정보 저장
-                  </button>
-                  <button className="w-full md:w-auto ml-0 md:ml-2 border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
-                    비밀번호 변경
+                  <button 
+                    onClick={handleUserInfoSave}
+                    disabled={authLoading}
+                    className="w-full md:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {authLoading ? '저장 중...' : '정보 저장'}
                   </button>
                 </div>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-slate-200">
-                <h4 className="text-lg font-semibold text-red-600 mb-4">위험한 작업</h4>
-                <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
-                  계정 삭제
-                </button>
-                <p className="text-sm text-slate-500 mt-2">
-                  계정을 삭제하면 모든 데이터가 영구적으로 삭제됩니다.
-                </p>
-              </div>
             </div>
           </div>
         );

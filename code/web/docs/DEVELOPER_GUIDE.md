@@ -17,13 +17,13 @@ AI 면접 시스템의 코드 구조, 확장 방법, 개발 환경 설정에 대
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │    │   Backend       │    │   External      │
-│   (HTML/JS)     │◄──►│   (Flask)       │◄──►│   (OpenAI API)  │
+│   (React + TS)  │◄──►│   (FastAPI)     │◄──►│   (OpenAI API)  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                               │
                               ▼
                        ┌─────────────────┐
-                       │   File System   │
-                       │   (uploads/)    │
+                       │   Database      │
+                       │   (Supabase)    │
                        └─────────────────┘
 ```
 
@@ -33,60 +33,67 @@ Document Upload → Document Processor → User Profile → Question Generation 
 ```
 
 ### 기술 스택
-- **Backend**: Python 3.8+, Flask 3.0.3
-- **AI Engine**: OpenAI GPT-4o-mini
-- **Document Processing**: PyPDF2, python-docx
-- **Frontend**: Vanilla JavaScript, HTML5, CSS3
-- **Data Storage**: JSON files, In-memory sessions
+- **Backend**: Python 3.10+, FastAPI 0.104+, Uvicorn
+- **AI Engine**: OpenAI GPT-4o-mini, AutoML (AutoGluon)
+- **Database**: Supabase (PostgreSQL), Real-time subscriptions
+- **Frontend**: React 19.1.0, TypeScript, Tailwind CSS
+- **Document Processing**: PyPDF2, python-docx, sentence-transformers
+- **Infrastructure**: CORS middleware, JWT authentication
 
 ## 📁 코드 구조
 
 ### 디렉토리 구조 상세
 ```
-final_Q_test/
-├── backend/                   # FastAPI 서버 (계층화)
-├── llm/                       # 🆕 모듈형 AI/LLM 구조
-│   ├── session/               # 🆕 세션 관리 모듈 (핵심!)
-│   │   ├── manager.py         # 통합 세션 관리자 (일반/비교 면접)
-│   │   ├── base_session.py    # 기본 면접 세션 로직
-│   │   ├── comparison_session.py # 비교 면접 세션 로직
-│   │   └── models.py          # 세션 관련 데이터 모델
+yoseop_1/
+├── backend/                   # FastAPI 서버 (v3.0 계층화)
+│   ├── main.py                # FastAPI 앱 엔트리포인트
+│   ├── routers/               # API 라우터 (RESTful)
+│   │   ├── interview.py       # 면접 API
+│   │   ├── auth.py            # 인증 API
+│   │   ├── company.py         # 회사 관리 API
+│   │   └── user.py            # 사용자 관리 API
+│   ├── services/              # 비즈니스 로직 레이어
+│   │   ├── interview_service.py # 면접 서비스
+│   │   └── supabase_client.py # DB 클라이언트
+│   └── schemas/               # Pydantic 모델
+├── frontend/                  # React + TypeScript (SPA)
+│   ├── src/                   
+│   │   ├── components/        # React 컴포넌트
+│   │   ├── pages/             # 페이지 컴포넌트
+│   │   ├── hooks/             # Custom hooks
+│   │   └── services/          # API 서비스
+│   └── package.json           # Node.js 의존성
+├── llm/                       # 🆕 모듈형 AI/LLM 구조 (v3.0)
+│   ├── session/               # 세션 관리 모듈
 │   ├── interviewer/           # 면접관 모듈 (질문 생성)
-│   ├── candidate/             # 지원자 모듈 (AI 답변)
-│   ├── feedback/              # 피드백 모듈 (답변 평가)
-│   ├── shared/                # 공용 모듈
-│   └── core/                  # LLM 관리 및 기타 공통 기능
-│       └── llm_manager.py     # LLM 관리자
-├── database/                  # 데이터베이스 레이어
+│   ├── candidate/             # AI 지원자 모듈 (답변 생성)
+│   ├── feedback/              # 평가 모듈 (ML + LLM)
+│   └── shared/                # 공용 모듈
 ├── scripts/                   # 실행 및 도구 스크립트
-├── uploads/                   # 파일 업로드 저장소
+│   └── start_backend.py       # 백엔드 실행 스크립트
 ├── logs/                      # 로그 파일
-├── requirements.txt           # Python 의존성
-├── .env.example               # 환경변수 예시
-└── run.py                     # 메인 실행 파일
+└── requirements.txt           # Python 의존성
 ```
 
-### 모듈 의존성 다이어그램
+### 모듈 의존성 다이어그램 (v3.0)
 ```
-backend/main.py
+FastAPI App (backend/main.py)
     ↓
-backend/services/interview_service.py
+API Routers (backend/routers/)
     ↓
-llm/session/manager.py
+Service Layer (backend/services/)
     ↓
-llm/session/base_session.py
-llm/session/comparison_session.py
+LLM Session Manager (llm/session/manager.py)
     ↓
-llm/interviewer/service.py
-llm/candidate/model.py
-llm/feedback/service.py
+┌─────────────────┬─────────────────┬─────────────────┐
+│   Interviewer   │   AI Candidate  │   Feedback      │
+│   (질문 생성)    │   (답변 생성)    │   (평가)        │
+│   llm/interviewer│   llm/candidate │   llm/feedback  │
+└─────────────────┴─────────────────┴─────────────────┘
     ↓
-llm/shared/models.py
-llm/shared/constants.py
-llm/shared/utils.py
-llm/shared/config.py
-llm/shared/company_data_loader.py
-llm/core/llm_manager.py
+Shared Components (llm/shared/)
+    ↓
+External Services (OpenAI API, Supabase, AutoML)
 ```
 
 ## 🔧 핵심 컴포넌트
@@ -217,21 +224,26 @@ class ConversationContext:
 ```bash
 # 1. 저장소 클론
 git clone <repository-url>
-cd final_Q_test
+cd final_project/yoseop_1
 
 # 2. 가상환경 설정
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 3. 의존성 설치
+# 3. Python 의존성 설치
 pip install -r requirements.txt
 
 # 4. 환경변수 설정
-cp .env.example .env
-# .env 파일에서 OPENAI_API_KEY 설정
+# .env 파일에서 OPENAI_API_KEY, SUPABASE_URL, SUPABASE_KEY 설정
 
-# 5. 개발 서버 실행
-python backend/main.py
+# 5. 백엔드 개발 서버 실행
+python scripts/start_backend.py
+# 또는 직접: python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+
+# 6. 프론트엔드 개발 서버 실행 (별도 터미널)
+cd frontend
+npm install
+npm start
 ```
 
 ### 2. 개발 도구 설정
@@ -273,15 +285,18 @@ EOF
 
 ### 3. 디버깅 설정
 
-#### Flask 디버그 모드
+#### FastAPI 디버그 모드
 ```python
-# web/app.py
+# backend/main.py
+import uvicorn
+
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=8888,
-        debug=True,  # 개발 시에만 True
-        threaded=True
+    uvicorn.run(
+        "main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,  # 개발 시에만 True (자동 재시작)
+        log_level="info"
     )
 ```
 

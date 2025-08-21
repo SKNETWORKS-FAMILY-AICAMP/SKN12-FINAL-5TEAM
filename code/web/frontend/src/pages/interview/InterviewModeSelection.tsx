@@ -23,36 +23,20 @@ const InterviewModeSelection: React.FC = () => {
 
   const interviewModes: InterviewMode[] = [
     {
-      id: 'personalized',
-      title: '개인화 면접',
-      description: '이력서 기반 맞춤형 질문',
-      features: ['이력서 분석 기반 질문', '맞춤형 피드백', '개인화된 평가'],
-      color: 'from-blue-500 to-cyan-500',
-      icon: '📄'
-    },
-    {
-      id: 'standard',
-      title: '표준 면접',
-      description: '기본 질문으로 진행',
-      features: ['일반적인 면접 질문', '빠른 시작', '기본 평가'],
-      color: 'from-green-500 to-emerald-500',
-      icon: '📝'
-    },
-    {
-      id: 'text_competition',
-      title: '텍스트 AI 경쟁',
-      description: 'AI와 텍스트로 경쟁하는 면접',
-      features: ['고품질 턴제 면접', 'AI 페르소나 경쟁', '텍스트 기반 진행'],
-      color: 'from-orange-500 to-red-500',
-      icon: '⌨️'
-    },
-    {
       id: 'ai_competition',
       title: 'AI 경쟁 면접',
       description: 'AI 지원자와 경쟁',
       features: ['실시간 AI 대결', '비교 분석', '경쟁력 평가'],
       color: 'from-purple-500 to-pink-500',
       icon: '🤖'
+    },
+    {
+      id: 'coming_soon',
+      title: 'Coming Soon',
+      description: '새로운 기능이 곧 출시됩니다',
+      features: ['더 많은 면접 모드', '향상된 기능', '기대해 주세요'],
+      color: 'from-gray-400 to-gray-500',
+      icon: '⏳'
     }
   ];
 
@@ -93,15 +77,17 @@ const InterviewModeSelection: React.FC = () => {
           </div>
 
           {/* 면접 모드 선택 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
             {interviewModes.map((mode, index) => (
               <div
                 key={mode.id}
-                onClick={() => setSelectedMode(mode.id)}
-                className={`interview-card cursor-pointer rounded-2xl p-8 border-2 transition-all duration-300 ${
-                  selectedMode === mode.id
-                    ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 transform scale-105 shadow-xl'
-                    : 'border-slate-200 bg-white/80 hover:border-slate-300 hover:shadow-lg'
+                onClick={() => mode.id !== 'coming_soon' ? setSelectedMode(mode.id) : undefined}
+                className={`interview-card rounded-2xl p-8 border-2 transition-all duration-300 ${
+                  mode.id === 'coming_soon'
+                    ? 'border-gray-300 bg-gray-100/80 cursor-not-allowed opacity-60'
+                    : selectedMode === mode.id
+                      ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 transform scale-105 shadow-xl cursor-pointer'
+                      : 'border-slate-200 bg-white/80 hover:border-slate-300 hover:shadow-lg cursor-pointer'
                 }`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >

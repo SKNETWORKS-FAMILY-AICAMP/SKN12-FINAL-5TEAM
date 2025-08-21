@@ -69,7 +69,7 @@ class InterviewServiceTemp:
             company_id = self.get_company_id(settings['company'])
             
             interview_logger.info(f"🎯 텍스트 기반 면접 시작: {company_id} - {settings['position']}")
-            
+            print(settings)
             # 이력서 데이터 검증 및 로깅
             if 'resume' in settings and settings['resume']:
                 resume_data = settings['resume']
@@ -123,6 +123,15 @@ class InterviewServiceTemp:
                 }
                 print(f"⚠️ 이력서 데이터 없음 - 기본값 사용: {user_resume['name']}")
             
+            # 🆕 난이도 변환 및 저장
+            difficulty_map = {
+                '초급': QualityLevel.INADEQUATE,
+                '중급': QualityLevel.AVERAGE,
+                '고급': QualityLevel.EXCELLENT
+            }
+            quality_level = difficulty_map.get(settings.get('difficulty', '중급'), QualityLevel.AVERAGE)
+            interview_logger.info(f"🔡 텍스트 면접 난이도 설정: {settings.get('difficulty')} -> {quality_level.name}")
+
             session_data = {
                 'session_id': session_id,
                 'company_id': company_id,
@@ -130,6 +139,7 @@ class InterviewServiceTemp:
                 'candidate_name': settings['candidate_name'],
                 'user_resume': user_resume,
                 'ai_persona': ai_persona,
+                'ai_quality_level': quality_level,  # 🆕 세션에 난이도 저장
                 'qa_history': [],
                 'user_answers': [],
                 'ai_answers': [],
@@ -199,7 +209,7 @@ class InterviewServiceTemp:
                 question_intent=current_question.get('intent', '면접 평가'),
                 company_id=session_data['company_id'],
                 position=session_data['position'],
-                quality_level=QualityLevel.GOOD,
+                quality_level=session_data.get('ai_quality_level', QualityLevel.AVERAGE),  # 🆕 세션 난이도 사용
                 llm_provider="openai_gpt4o_mini"
             )
             
@@ -228,13 +238,28 @@ class InterviewServiceTemp:
                 chun_sik_answer=ai_answer_content
             )
             
-            # 4. 히스토리 업데이트
+            # 4. 히스토리 업데이트 - 사용자와 AI 답변을 각각 별도 엔트리로 저장
+            timestamp = datetime.now().isoformat()
+            sequence_base = len(session_data['qa_history'])
+            
+            # 사용자 답변 저장
             session_data['qa_history'].append({
                 'question': question_content,
-                'user_answer': user_answer,
-                'ai_answer': ai_answer_content,
+                'answerer': 'user',
+                'answer': user_answer,
                 'interviewer_type': interviewer_type,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': timestamp,
+                'sequence': sequence_base + 1
+            })
+            
+            # AI 답변 저장
+            session_data['qa_history'].append({
+                'question': question_content,
+                'answerer': 'ai',
+                'answer': ai_answer_content,
+                'interviewer_type': interviewer_type,
+                'timestamp': timestamp,
+                'sequence': sequence_base + 2
             })
             
             # 5. 현재 질문 업데이트
@@ -408,7 +433,9 @@ class InterviewServiceTemp:
             'HR': QuestionType.HR,
             'TECH': QuestionType.TECH,
             'COLLABORATION': QuestionType.COLLABORATION,
-            'SYSTEM': QuestionType.FOLLOWUP
+            'SYSTEM': QuestionType.FOLLOWUP,
+            'INTRO': QuestionType.INTRO,
+            'MOTIVATION': QuestionType.MOTIVATION,
         }
         return mapping.get(interviewer_type, QuestionType.HR)
     

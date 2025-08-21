@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>면접 환경 설정</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 420px;
+            width: 95%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 0 32px 0;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0 18px 0;
+            text-align: center;
+            width: 100%;
+        }
+        .header h1 { font-size: 2.1em; margin-bottom: 8px; }
+        .header p { font-size: 1em; opacity: 0.93; }
+        .instruction {
+            width: 92%;
+            margin: 18px auto 10px auto;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 13px 15px;
+            border-radius: 7px;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            font-size: 1.08em;
+        }
+        .video-container {
+            margin: 0 auto;
+            width: 96%;
+            max-width: 400px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+            background: #000;
+            display: flex;
+            justify-content: center;
+            aspect-ratio: 4/3;
+            min-height: 300px;
+            min-width: 400px;
+        }
+        .video-feed {
+            width: 100%;
+            height: 100%;
+            max-width: 400px;
+            max-height: 300px;
+            aspect-ratio: 4/3;
+            object-fit: cover;
+            display: block;
+            background: #222;
+        }
+        .control-panel {
+            width: 92%;
+            margin: 20px auto 0 auto;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px 18px 18px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            align-items: center;
+        }
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            margin-top: 3px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            text-align: center;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.08em;
+            width: 95%;
+        }
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.setting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status.completed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🎯 면접 환경 설정</h1>
+        <p>시선 추적을 위한 환경을 설정합니다</p>
+    </div>
+    <!-- 알림 메시지: 카메라 위 -->
+    <div class="instruction" id="step-instruction">
+        환경 세팅 버튼을 누르세요
+    </div>
+    <!-- 카메라: 중앙 -->
+    <div class="video-container">
+        <img id="video-feed" src="{{ url_for('video_feed') }}" class="video-feed" alt="카메라 로딩 중...">
+    </div>
+    <!-- 버튼, 상태: 카메라 아래 -->
+    <div class="control-panel">
+        <div class="status ready" id="status">✅ 설정 준비 완료</div>
+        <button class="btn btn-primary" id="setup-btn" onclick="startSetting()">🎯 면접 환경 세팅</button>
+        <button class="btn btn-success" id="start-btn" onclick="startInterview()" disabled>🚀 면접 시작</button>
+    </div>
+</div>
+
+<script>
+let isSettingComplete = false;
+let statusCheckInterval = null;
+
+// 단계별 알림 메시지 (백엔드에서 phase로 상태 체크할 때 바꿔줌)
+const phaseInstructions = {
+    'ready': "환경 세팅 버튼을 누르세요",
+    'top_left': "3초 후 좌상단을 3초 동안 응시하세요",
+    'bottom_left': "3초 후 좌하단을 3초 동안 응시하세요",
+    'top_right': "3초 후 우상단을 3초 동안 응시하세요",
+    'bottom_right': "3초 후 우하단을 3초 동안 응시하세요",
+    'completed': "면접 시작 버튼을 누르세요"
+};
+
+function setStepInstruction(phase) {
+    const instructionEl = document.getElementById('step-instruction');
+    // phase에 따라 메시지 세팅
+    if (phaseInstructions[phase]) {
+        instructionEl.textContent = phaseInstructions[phase];
+    } else {
+        instructionEl.textContent = "환경 세팅 버튼을 누르세요";
+    }
+}
+
+function startSetting() {
+    fetch('/start_setting', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('status').textContent = '⏳ 환경 설정 중...';
+                document.getElementById('status').className = 'status setting';
+                document.getElementById('setup-btn').disabled = true;
+                setStepInstruction('top_left'); // 첫 안내는 top_left로 시작(예시, 필요시 백엔드에 맞게 수정)
+                startStatusCheck();
+            }
+        })
+        .catch(() => alert('❌ 환경 설정 시작 실패'));
+}
+
+function startStatusCheck() {
+    statusCheckInterval = setInterval(() => {
+        fetch('/get_setting_status', { method: 'GET' })
+            .then(res => res.json())
+            .then(data => {
+                // phase 정보에 따라 안내문구 변경
+                setStepInstruction(data.phase);
+                if (data.phase === 'completed' && !data.is_setting) {
+                    clearInterval(statusCheckInterval);
+                    isSettingComplete = true;
+                    document.getElementById('status').textContent = '✅ 환경 설정 완료!';
+                    document.getElementById('status').className = 'status completed';
+                    document.getElementById('setup-btn').disabled = false;
+                    document.getElementById('start-btn').disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error('상태 확인 실패:', err);
+            });
+    }, 500);
+}
+
+function startInterview() {
+    if (!isSettingComplete) {
+        alert('⚠️ 먼저 환경 설정을 완료해주세요.');
+        return;
+    }
+    window.location.href = '/interview';
+}
+document.getElementById('video-feed').addEventListener('error', function() {
+    alert('카메라 스트리밍을 불러올 수 없습니다. 카메라 권한을 확인하세요.');
+});
+// 페이지 로딩 시 안내 초기화
+setStepInstruction('ready');
+</script>
+</body>
+</html>

@@ -25,7 +25,7 @@ def verify_resume_ownership(resume_id: int, user_id: int) -> dict:
     return resume_data
 
 # 🟢 GET /resume – 내 이력서 목록 조회
-@resume_router.get("/", response_model=List[ResumeResponse])
+@resume_router.get("", response_model=List[ResumeResponse])
 async def get_resumes(current_user: UserResponse = Depends(auth_service.get_current_user)):
     """현재 인증된 사용자의 이력서 목록을 조회합니다."""
     res = supabase_client.client.from_("user_resume").select("*").eq("user_id", current_user.user_id).execute()
@@ -34,7 +34,7 @@ async def get_resumes(current_user: UserResponse = Depends(auth_service.get_curr
     return res.data
     
 # 🟡 POST /resume – 이력서 생성
-@resume_router.post("/", response_model=ResumeResponse)
+@resume_router.post("", response_model=ResumeResponse)
 async def create_resume(resume: ResumeCreate, current_user: UserResponse = Depends(auth_service.get_current_user)):
     """현재 인증된 사용자의 새 이력서를 생성합니다."""
     data = {**resume.dict(), "user_id": current_user.user_id}

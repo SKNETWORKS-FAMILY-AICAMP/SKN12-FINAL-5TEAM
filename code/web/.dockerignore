@@ -1,0 +1,134 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Environment files
+.env
+.env.local
+.env.example
+.env.template
+
+# Python cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.pytest_cache/
+.coverage
+.tox/
+.cache
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node.js dependencies and cache
+frontend/node_modules/
+# frontend/.env  # Allow frontend/.env for build
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+
+# Build outputs (these will be generated during Docker build)
+# frontend/build/  # Don't exclude - needed for serving
+# frontend/dist/   # Don't exclude - needed for serving
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/*.log
+backend/logs/*.log
+backend/server.log
+frontend/react_output.log
+frontend/react_server.log
+frontend/server_output.log
+
+# Temporary and cache directories
+.tmp/
+tmp/
+temp/
+.cache/
+cache/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test files and coverage
+.coverage
+.nyc_output
+coverage/
+*.cover
+.hypothesis/
+
+# Claude Code specific
+.claude/
+
+# Docker files (to prevent recursion)
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+circle.yml
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Large model files (if not needed in container)  
+# *.pkl          # Comment out - ML models are needed
+# *.bin          # Comment out - ML models are needed  
+# *.safetensors  # Comment out - ML models are needed
+# Note: AI interview system needs these ML model files
+
+# Upload directories (will be mounted as volume)
+backend/uploads/*
+uploads/*
+
+# Performance logs
+performance.log
+server.json
