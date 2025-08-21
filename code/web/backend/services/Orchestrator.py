@@ -1,11 +1,15 @@
-import time
+import asyncio
 import json
 import random
-import asyncio
 import re
-import base64
+import time
+import traceback
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+from llm.candidate.quality_controller import QualityLevel
+from llm.shared.logging_config import interview_logger
+from llm.shared.models import AnswerRequest, LLMProvider, QuestionType
 
 # TTS는 이제 프론트엔드에서 처리하므로 세마포어 제거
 
@@ -103,7 +107,6 @@ class Orchestrator:
             
         elif task == "individual_questions_generated":
             # 🆕 개별 꼬리질문 생성 완료 - content는 dict 형태
-            import json
             if isinstance(content, str):
                 questions_data = json.loads(content)
             else:
@@ -576,7 +579,6 @@ class Orchestrator:
     async def _request_question_from_interviewer(self) -> str:
         """면접관(QuestionGenerator)에게 질문 생성을 요청하고, 텍스트 결과만 반환"""
         try:
-            from llm.shared.logging_config import interview_logger
             interview_logger.info(f"📤 면접관에게 질문 생성 요청: {self.session_id}")
             
             # QuestionGenerator에게 상태 객체(state)를 전달하여 질문 생성
@@ -601,14 +603,12 @@ class Orchestrator:
             return question_data.get('question', '다음 질문이 무엇인가요?')
             
         except Exception as e:
-            from llm.shared.logging_config import interview_logger
             interview_logger.error(f"면접관 질문 요청 오류: {e}", exc_info=True)
             return "죄송합니다, 질문을 생성하는 데 문제가 발생했습니다."
 
     async def _request_individual_follow_up_questions(self) -> Dict[str, Any]:
         """면접관에게 개별 꼬리질문 2개 생성 요청"""
         try:
-            from llm.shared.logging_config import interview_logger
             interview_logger.info(f"📤 면접관에게 개별 꼬리질문 생성 요청: {self.session_id}")
             
             # qa_history에서 최신 답변들 추출
@@ -665,7 +665,6 @@ class Orchestrator:
             return follow_up_data
             
         except Exception as e:
-            from llm.shared.logging_config import interview_logger
             interview_logger.error(f"개별 꼬리질문 요청 오류: {e}", exc_info=True)
             
             # 폴백: 공통 꼬리질문 사용
@@ -693,14 +692,9 @@ class Orchestrator:
     async def _request_answer_from_ai_candidate(self, question: str) -> str:
         """AI 지원자에게 답변 생성을 요청하고, 텍스트 결과만 반환"""
         try:
-            from llm.shared.logging_config import interview_logger
             interview_logger.info(f"📤 AI 지원자에게 답변 요청: {self.session_id}")
             
             ai_persona = self.session_state.get('ai_persona')
-            
-            # 답변 생성 요청 구성
-            from llm.shared.models import AnswerRequest, QuestionType, LLMProvider
-            from llm.candidate.quality_controller import QualityLevel
             
             answer_request = AnswerRequest(
                 question_content=question,
@@ -720,7 +714,6 @@ class Orchestrator:
             return response.answer_content
             
         except Exception as e:
-            from llm.shared.logging_config import interview_logger
             interview_logger.error(f"AI 지원자 답변 요청 오류: {e}", exc_info=True)
             return "죄송합니다, 답변을 생성하는 데 문제가 발생했습니다."
 
@@ -1064,7 +1057,6 @@ class Orchestrator:
             
         except Exception as e:
             print(f"[⚡ INITIAL_FLOW] ❌ 초기 플로우 처리 실패: {e}")
-            import traceback
             print(f"[⚡ INITIAL_FLOW] 스택 트레이스: {traceback.format_exc()}")
             
             return {

@@ -1,21 +1,20 @@
-import json
-import json
-from typing import Dict, Any, List, Optional
 import asyncio
-import uuid
-import time
-import boto3
+import json
 import os
-from llm.interviewer.question_generator import QuestionGenerator
-from llm.candidate.model import AICandidateModel, CandidatePersona
-from llm.shared.models import AnswerRequest, QuestionType, LLMProvider
-from llm.candidate.quality_controller import QualityLevel
-from llm.shared.logging_config import interview_logger
+import time
+import uuid
+from typing import Any, Dict, List, Optional
 
+from backend.services.existing_tables_service import existing_tables_service
 from backend.services.Orchestrator import Orchestrator
 from backend.services.supabase_client import get_supabase_client
-from backend.services.existing_tables_service import existing_tables_service
-from backend.services.gaze_service import gaze_analyzer
+from llm.candidate.model import AICandidateModel
+from llm.feedback.api_models import QuestionAnswerPair
+from llm.feedback.api_service import InterviewEvaluationService
+from llm.interviewer.question_generator import QuestionGenerator
+from llm.shared.logging_config import interview_logger
+
+
 class InterviewService:
     def __init__(self):
         # 세션 상태 관리 (Orchestrator의 state를 여기로 이관)
@@ -288,10 +287,6 @@ class InterviewService:
     async def trigger_feedback_for_session(self, session_id: str) -> None:
         """면접 완료 시 세션의 QA 히스토리를 기반으로 피드백 평가/계획을 백그라운드에서 실행"""
         try:
-            from llm.feedback.api_models import QuestionAnswerPair
-            from llm.feedback.api_service import InterviewEvaluationService
-            import os
-            import glob
             interview_logger.info(f"피드백 트리거 시작: {session_id}")
             await asyncio.sleep(15)  # CPU 사용 없이 5초 비동기 대기
             interview_logger.info(f"피드백 트리거 종료: {session_id}")
@@ -449,7 +444,6 @@ class InterviewService:
             # 3. media_files 테이블에 레코드 삽입 (s3_key가 있을 때만)
             if s3_key_found:
                 try:
-                    import os
                     AWS_REGION = os.getenv('AWS_REGION', 'ap-northeast-2')
                     BUCKET_NAME = 'betago-s3'
                     file_name = os.path.basename(s3_key_found)
