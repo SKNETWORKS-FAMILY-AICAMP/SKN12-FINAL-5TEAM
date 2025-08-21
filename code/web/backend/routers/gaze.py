@@ -39,7 +39,8 @@ from schemas.gaze import (
 
 # 시선 분석 서비스 import
 try:
-    from services.gaze_service import GazeCalibrationManager, GazeAnalyzer, GazeAnalysisResult as GazeAnalyzerResultData
+    from services.calibration_service import GazeCalibrationManager
+    from services.gaze_service import GazeAnalyzer, GazeAnalysisResult as GazeAnalyzerResultData
     calibration_manager = GazeCalibrationManager()
     gaze_analyzer = GazeAnalyzer()
 except ImportError as e:

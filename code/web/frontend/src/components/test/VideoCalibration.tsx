@@ -140,7 +140,7 @@ const VideoCalibration: React.FC<CalibrationProps> = ({ onCalibrationComplete, o
       const userId = user?.user_id || null;
       
       const response = await apiClient.post('/gaze/calibration/start', 
-        { user_id: userId },
+        { user_id: userId?.toString() || null },
         { timeout: GAZE_CONSTANTS.API_TIMEOUT }
       );
       const data = response.data as { session_id: string };

@@ -7,21 +7,19 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 // Pages
 import MainPage from './pages/MainPage';
 import InterviewSetup from './pages/InterviewSetup';
-import InterviewActive from './pages/InterviewActive';
 import InterviewGO from './pages/InterviewGO';
-import InterviewActiveTemp from './pages/InterviewActive_temp';
 import InterviewResults from './pages/InterviewResults';
 import InterviewHistory from './pages/InterviewHistory';
-import InterviewModeSelection from './pages/interview/InterviewModeSelection';
+import InterviewModeSelection from './pages/InterviewModeSelection';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import SignUpPage from './pages/SignUpPage';
 
 // New Interview Flow Pages
-import JobPostingSelection from './pages/interview/JobPostingSelection';
-import ResumeSelection from './pages/interview/ResumeSelection';
-import AISetup from './pages/interview/AISetup';
-import EnvironmentCheck from './pages/interview/EnvironmentCheck';
+import JobPostingSelection from './pages/JobPostingSelection';
+import ResumeSelection from './pages/ResumeSelection';
+import AISetup from './pages/AISetup';
+import EnvironmentCheck from './pages/EnvironmentCheck';
 import OAuthCallbackPage from './pages/OAuthCallbackPage';
 
 function App() {
@@ -81,11 +79,6 @@ function App() {
               <Route path="/interview/active" element={
                 <ProtectedRoute>
                   <InterviewGO />
-                </ProtectedRoute>
-              } />
-              <Route path="/interview/active-temp" element={
-                <ProtectedRoute>
-                  <InterviewActiveTemp />
                 </ProtectedRoute>
               } />
               <Route path="/interview/results/:interviewId" element={
