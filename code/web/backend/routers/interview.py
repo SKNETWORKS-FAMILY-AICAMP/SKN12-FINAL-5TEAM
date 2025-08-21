@@ -725,9 +725,9 @@ async def download_interview_video(interview_id: int, optimize: bool = False):
         s3_object = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
         
         if optimize:
-            # FFmpeg 최적화 적용
+                        # FFmpeg 최적화 적용
             interview_logger.info("🔧 FFmpeg 최적화 적용 중...")
-            from utils.video_optimizer import VideoOptimizer
+            from services.video_optimizer import VideoOptimizer
             
             if not VideoOptimizer.is_ffmpeg_available():
                 interview_logger.warning("FFmpeg를 찾을 수 없어 원본 파일로 제공합니다")
